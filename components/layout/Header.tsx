@@ -5,7 +5,7 @@ import MobileMenu from "./MobileMenu";
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-brand-950/95 text-white backdrop-blur">
+    <header className="sticky top-0 z-50 bg-brand-950/95 text-white backdrop-blur">
       <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Logo />
 
@@ -34,7 +34,7 @@ export default function Header() {
           </Link>
           <Link
             href="#trial"
-            className="hidden rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-white hover:bg-accent-dark md:inline-block"
+            className="hidden rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-brand-950 hover:bg-white/90 md:inline-block"
           >
             Enroll Now
           </Link>

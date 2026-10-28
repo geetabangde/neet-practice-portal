@@ -32,77 +32,83 @@ export const practiceChecklist: string[] = [
   "Instant scorecard with your position after every test",
 ];
 
-export const sampleOptions: { text: string; percent: number }[] = [
-  { text: "Occurs in the cytoplasm", percent: 4 },
-  { text: "Conversion of glucose to 8-carbon units", percent: 8 },
-  { text: "Complete breakdown of glucose", percent: 12 },
-  { text: "2 ATPs are utilised in the pathway", percent: 76 },
-];
-
 export const features: Feature[] = [
   {
     tag: "Learn",
     title: "Video Classes",
     description:
       "810+ hours of integrated concept videos across 19 subjects, with interactive MCQ discussions.",
-    preview: "video",
-    panelClass: "bg-rose-50",
+    image: "/features/video.png",
+    imageAlt: "Video player showing the lesson Glycolysis, full solution",
+    icon: "/icons/feature-learn.png",
+    tagClass: "bg-orange-100 text-orange-500",
   },
   {
     tag: "Practice",
     title: "Custom Module",
     description:
       "Build a set by difficulty, length and subjects, then solve it on the same exam interface.",
-    preview: "custom",
-    panelClass: "bg-violet-50",
+    image: "/features/custom.png",
+    imageAlt: "Create a Custom Module screen with number of questions, difficulty level and question source options",
+    icon: "/icons/feature-practice.png",
+    tagClass: "bg-indigo-100 text-indigo-600",
   },
   {
     tag: "Navigate",
     title: "Question Navigator",
     description:
       "Jump to any question and see your status across the whole module at a glance.",
-    preview: "navigator",
-    panelClass: "bg-rose-50",
+    image: "/features/navigator.png",
+    imageAlt: "Question Navigator grid showing correct, incorrect, unattempted and bookmarked questions",
+    icon: "/icons/feature-navigate.png",
+    tagClass: "bg-rose-100 text-rose-500",
   },
   {
     tag: "Revise",
     title: "Magic Module",
     description:
       "An automatic set of the MCQs you got wrong, so revision targets your weak spots.",
-    preview: "magic",
-    panelClass: "bg-sky-50",
+    image: "/features/magic.png",
+    imageAlt: "Magic Module question with the answer options and the percentage of students who chose each",
+    icon: "/icons/feature-revise.png",
+    tagClass: "bg-sky-100 text-sky-600",
   },
   {
     tag: "Save",
     title: "Bookmarks",
     description:
       "Save modules and questions, filter by subject and sort by newest first.",
-    preview: "bookmarks",
-    panelClass: "bg-emerald-50",
+    image: "/features/bookmarks.png",
+    imageAlt: "List of bookmarked modules across subjects",
+    icon: "/icons/feature-save.png",
+    tagClass: "bg-green-100 text-green-700",
   },
   {
     tag: "Improve",
-    title: "Score and Rank Report",
+    title: "Score And Rank Report",
     description:
       "See your score, correct vs incorrect and your position, then review answers or retake.",
-    preview: "score",
-    panelClass: "bg-indigo-50",
+    image: "/features/score.png",
+    imageAlt: "Test Completed screen showing score, position, correct and incorrect counts",
+    icon: "/icons/feature-improve.png",
+    tagClass: "bg-violet-100 text-violet-500",
   },
 ];
 
+// Placeholder figures copied from the Figma design (it repeats some subjects)
 export const subjects: Subject[] = [
-  { name: "Anatomy", modulesDone: 63, modulesTotal: 63 },
-  { name: "Microbiology", modulesDone: 32, modulesTotal: 63 },
-  { name: "Ophthalmology", modulesDone: 18, modulesTotal: 35 },
-  { name: "Psychiatry", modulesDone: 0, modulesTotal: 35 },
-  { name: "Pharmacology", modulesDone: 0, modulesTotal: 28 },
-  { name: "Community Medicine", modulesDone: 43, modulesTotal: 64 },
-  { name: "Physiology", modulesDone: 29, modulesTotal: 43 },
-  { name: "Forensic Medicine", modulesDone: 20, modulesTotal: 40 },
-  { name: "Pediatrics", modulesDone: 44, modulesTotal: 64 },
-  { name: "Anaesthesia", modulesDone: 35, modulesTotal: 35 },
-  { name: "Biochemistry", modulesDone: 11, modulesTotal: 35 },
-  { name: "Pathology", modulesDone: 11, modulesTotal: 35 },
+  { name: "Anatomy", icon: "anatomy", modules: "63/63", percent: 100 },
+  { name: "Microbiology", icon: "microbiology", modules: "63/63", percent: 50 },
+  { name: "Ophthalmology", icon: "ophthalmology", modules: "35/35", percent: 50 },
+  { name: "Psychiatry", icon: "psychiatry", modules: "35/35", percent: 0 },
+  { name: "Pharmacology", icon: "pharmacology", modules: "35/35", percent: 0 },
+  { name: "Community Medicine", icon: "community-medicine", modules: "64/64", percent: 68 },
+  { name: "Microbiology", icon: "microbiology-2", modules: "63/63", percent: 50 },
+  { name: "Physiology", icon: "physiology", modules: "43/43", percent: 68 },
+  { name: "Community Medicine", icon: "community-medicine-2", modules: "64/64", percent: 68 },
+  { name: "Anaesthesia", icon: "anaesthesia", modules: "35/35", percent: 100 },
+  { name: "Biochemistry", icon: "biochemistry", modules: "35/35", percent: 30 },
+  { name: "Pathology", icon: "pathology", modules: "35/35", percent: 30 },
 ];
 
 export const stats: Stat[] = [

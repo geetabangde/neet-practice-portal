@@ -18,12 +18,14 @@ export default function SectionHeading({
 }: SectionHeadingProps) {
   return (
     <div className="mx-auto max-w-2xl text-center">
-      <span className="inline-block rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent-dark">
+      <span
+        className={`inline-block rounded-full px-3 py-1 text-xl font-medium ${dark ? "bg-accent/20 text-white" : "bg-accent-soft text-accent-dark"}`}
+      >
         {badge}
       </span>
       <h2
         id={id}
-        className={`mt-4 text-3xl font-bold tracking-tight sm:text-4xl ${dark ? "text-white" : "text-brand-950"}`}
+        className={`mt-4 text-3xl font-bold tracking-tight sm:text-3xl ${dark ? "text-white" : "text-black"}`}
       >
         {title} <span className="text-accent">{highlight}</span>
       </h2>

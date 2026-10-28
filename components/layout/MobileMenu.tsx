@@ -11,6 +11,7 @@ export default function MobileMenu({ links }: { links: NavLink[] }) {
   return (
     <div className="md:hidden">
       <button
+        suppressHydrationWarning
         type="button"
         aria-expanded={open}
         aria-controls="mobile-nav"
@@ -40,11 +41,21 @@ export default function MobileMenu({ links }: { links: NavLink[] }) {
                 </Link>
               </li>
             ))}
+            {/* The header hides its Login button below the sm breakpoint, so it lives here on phones */}
+            <li className="sm:hidden">
+              <Link
+                href="#trial"
+                onClick={() => setOpen(false)}
+                className="mt-2 block rounded-lg border border-white/40 px-3 py-2 text-center text-sm font-semibold text-white"
+              >
+                Login
+              </Link>
+            </li>
             <li>
               <Link
                 href="#trial"
                 onClick={() => setOpen(false)}
-                className="mt-2 block rounded-lg bg-accent px-3 py-2 text-center text-sm font-semibold text-white"
+                className="mt-2 block rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-brand-950"
               >
                 Enroll Now
               </Link>

@@ -3,27 +3,26 @@ export type NavLink = {
   href: string;
 };
 
-export type FeaturePreviewKind =
-  | "video"
-  | "custom"
-  | "navigator"
-  | "magic"
-  | "bookmarks"
-  | "score";
-
 export type Feature = {
   tag: string;
   title: string;
   description: string;
-  preview: FeaturePreviewKind;
-  // Tailwind classes for the tinted preview panel
-  panelClass: string;
+  // Preview image exported from the design, shown at the top of the card
+  image: string;
+  imageAlt: string;
+  // Path of the small icon shown inside the tag pill
+  icon: string;
+  // Tailwind classes for the tag pill colours
+  tagClass: string;
 };
 
 export type Subject = {
   name: string;
-  modulesDone: number;
-  modulesTotal: number;
+  // File name (without extension) in public/subjects
+  icon: string;
+  // Shown as-is, e.g. "63/63"
+  modules: string;
+  percent: number;
 };
 
 export type Stat = {

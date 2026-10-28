@@ -15,9 +15,11 @@
   --color-brand-950: #04202a;
   --color-brand-900: #07313b;
   --color-brand-800: #0b4452;
-  --color-accent: #17bfdc;
-  --color-accent-dark: #0e9fba;
+  --color-accent: #0cc1e0;
+  --color-accent-dark: #0aa4bf;
   --color-accent-soft: #e6f8fc;
+  /* Very light cyan used for section/card backgrounds in the design */
+  --color-tint: #f3fbfd;
 }
 
 html {
