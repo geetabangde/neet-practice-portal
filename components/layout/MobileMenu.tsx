@@ -44,7 +44,7 @@ export default function MobileMenu({ links }: { links: NavLink[] }) {
             {/* The header hides its Login button below the sm breakpoint, so it lives here on phones */}
             <li className="sm:hidden">
               <Link
-                href="#trial"
+                href="/login"
                 onClick={() => setOpen(false)}
                 className="mt-2 block rounded-lg border border-white/40 px-3 py-2 text-center text-sm font-semibold text-white"
               >
@@ -53,7 +53,7 @@ export default function MobileMenu({ links }: { links: NavLink[] }) {
             </li>
             <li>
               <Link
-                href="#trial"
+                href="/signup"
                 onClick={() => setOpen(false)}
                 className="mt-2 block rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-brand-950"
               >

@@ -25,15 +25,14 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          {/* Auth is out of scope for now, so Login points at the trial form */}
           <Link
-            href="#trial"
+            href="/login"
             className="hidden rounded-full border border-white/40 px-4 py-1.5 text-sm font-medium hover:bg-white/10 sm:inline-block"
           >
             Login
           </Link>
           <Link
-            href="#trial"
+            href="/signup"
             className="hidden rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-brand-950 hover:bg-white/90 md:inline-block"
           >
             Enroll Now

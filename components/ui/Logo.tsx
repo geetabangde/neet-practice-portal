@@ -4,11 +4,13 @@ import Link from "next/link";
 type LogoProps = {
   // Tailwind height class for the image; the width follows the aspect ratio
   heightClass?: string;
+  // "#top" on the landing page, "/" on other pages
+  href?: string;
 };
 
-export default function Logo({ heightClass = "h-10" }: LogoProps) {
+export default function Logo({ heightClass = "h-10", href = "#top" }: LogoProps) {
   return (
-    <Link href="#top" aria-label="HN QBank home" className="inline-flex items-center">
+    <Link href={href} aria-label="HN QBank home" className="inline-flex items-center">
       <Image
         src="/logo.png"
         alt="HN QBank"

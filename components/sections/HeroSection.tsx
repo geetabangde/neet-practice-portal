@@ -50,7 +50,7 @@ function DashboardCards() {
         />
         <p className="text-xs">Next test</p>
         <p className="mt-1 text-base font-bold leading-tight">Full syllabus Grand Test</p>
-        <p className="mt-1 text-[10px] text-slate-500">Sun, 10:00 AM · 3h 30m</p>
+        <p className="mt-1 text-[10px] text-black/80">Sun, 10:00 AM · 3h 30m</p>
       </div>
 
       <div className={`${cardBase} left-[202px] top-[260px] z-10 h-[114px] w-[180px]`}>

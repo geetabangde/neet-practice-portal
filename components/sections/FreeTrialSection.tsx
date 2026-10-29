@@ -3,6 +3,7 @@
 import { useState, type SubmitEvent } from "react";
 import { CheckIcon } from "@/components/ui/Icons";
 import { examOptions, trialPerks } from "@/data/landing";
+import { isValidEmail, isValidMobile } from "@/lib/validation";
 
 type Exam = (typeof examOptions)[number];
 type FieldName = "name" | "mobile" | "email";
@@ -11,10 +12,10 @@ type FormErrors = Partial<Record<FieldName, string>>;
 function validate(values: Record<FieldName, string>): FormErrors {
   const errors: FormErrors = {};
   if (!values.name.trim()) errors.name = "Please enter your full name.";
-  if (!/^(\+?91)?\d{10}$/.test(values.mobile.replace(/[\s-]/g, ""))) {
+  if (!isValidMobile(values.mobile)) {
     errors.mobile = "Enter a valid 10-digit mobile number.";
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
+  if (!isValidEmail(values.email)) {
     errors.email = "Enter a valid email address.";
   }
   return errors;
