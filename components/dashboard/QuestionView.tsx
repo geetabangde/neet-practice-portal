@@ -1,32 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { SubjectQuestion } from "@/types/dashboard";
 import QuestionNavigator from "./QuestionNavigator";
 import TestResult from "./TestResult";
+import Timer from "./Timer";
 import { ArrowLeftIcon, ArrowRightIcon, BookmarkIcon, ClockIcon, NotesIcon } from "./icons";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
-
-// Counts up from 0. The parent gives it a new `key` per question, so it restarts.
-function Timer() {
-  const [seconds, setSeconds] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
-  const ss = String(seconds % 60).padStart(2, "0");
-
-  return (
-    <span className="tabular-nums" role="timer" aria-label="Time on this question">
-      {mm}:{ss}
-    </span>
-  );
-}
 
 const roundButtonClass =
   "flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";

@@ -4,9 +4,13 @@ import type {
   DashboardPromo,
   DashboardSubject,
   DashboardUser,
+  Plan,
   SubjectModule,
   SubjectQuestion,
   SubjectTopic,
+  TestItem,
+  TestKind,
+  TestQuestionStatus,
 } from "@/types/dashboard";
 
 // Placeholder data copied from the Figma design. There is no backend yet, so
@@ -14,7 +18,7 @@ import type {
 export const dashboardNav: DashboardNavItem[] = [
   { label: "QBank", href: "/dashboard", icon: "qbank" },
   { label: "Bookmarks", href: "/dashboard/bookmarks", icon: "bookmarks" },
-  { label: "Test Series", href: "#", icon: "tests" },
+  { label: "Test Series", href: "/dashboard/test-series", icon: "tests" },
 ];
 
 export const dashboardUser: DashboardUser = {
@@ -42,7 +46,7 @@ export const customModulePromo: DashboardPromo = {
   title: "Custom Module",
   description: "Create a custom MCQ module with the difficulty level, length & subjects of your choice.",
   cta: "Create and Solve",
-  href: "#",
+  href: "/dashboard/custom-module",
 };
 
 export const revisionPromo: DashboardPromo = {
@@ -109,3 +113,94 @@ export const bookmarkQuestions: Record<string, SubjectQuestion[]> = {
     { ...moduleQuestions["biochemistry/glycolysis-and-gluconeogenesis"][0], image: undefined },
   ],
 };
+
+// Placeholder plans and prices copied from the design (every option shows the same price there)
+export const plans: Plan[] = [
+  {
+    name: "Plan A",
+    audience: "NEET PG / FMGE",
+    includes: "Test Series",
+    options: [{ months: 9, price: 16999, originalPrice: 25999 }, { months: 12, price: 16999, originalPrice: 25999 }],
+  },
+  {
+    name: "Plan C",
+    audience: "NEET PG / FMGE",
+    includes: "Videos + QBank + Test Series",
+    options: [{ months: 3, price: 16999, originalPrice: 25999 }, { months: 9, price: 16999, originalPrice: 25999 }, { months: 12, price: 16999, originalPrice: 25999, recommended: true }, { months: 15, price: 16999, originalPrice: 25999 }, { months: 24, price: 16999, originalPrice: 25999 }, { months: 36, price: 16999, originalPrice: 25999 }],
+    features: [
+      "810+ hours of Video classes",
+      "Integrated conceptual content across all 19 subjects",
+      "New interactive videos for MCQ Discussion",
+      "World of Revision",
+      "Animations & real clinical scenarios for better understanding",
+      "QBank with 18,500+ MCQs",
+      "Magic Module – curated list of MCQs that you got wrong",
+      "Updated Schema – all important & repeatedly asked topics at a glance",
+      "390+ total Tests (130+ Grand Tests)"
+    ],
+    defaultMonths: 12,
+    popular: true,
+  },
+  {
+    name: "Plan B",
+    audience: "NEET PG / FMGE",
+    includes: "QBank + Test Series",
+    options: [{ months: 3, price: 16999, originalPrice: 25999 }, { months: 9, price: 16999, originalPrice: 25999 }, { months: 12, price: 16999, originalPrice: 25999 }],
+  },
+];
+
+// ---- Create a Custom Module (placeholder options copied from the design) ----
+
+// The subject picker has two columns; these are the slugs in each, top to bottom
+export const customModuleColumns: string[][] = [
+  ["anatomy", "microbiology", "ophthalmology", "pharmacology", "pathology"],
+  ["physiology", "community-medicine", "anaesthesia", "biochemistry", "psychiatry"],
+];
+
+// Modules you can pick inside a subject. Only two subjects have them in the design.
+export const customSubjectModules: Record<string, { title: string; count: number }[]> = {
+  anatomy: [
+    { title: "History of Medicine", count: 1 },
+    { title: "Concept of Health and Disease", count: 1 },
+    { title: "Epidemiology", count: 1 },
+  ],
+  "community-medicine": [
+    { title: "History of Medicine", count: 1 },
+    { title: "Concept of Health and Disease", count: 1 },
+    { title: "Epidemiology", count: 1 },
+  ],
+};
+
+export const customModuleTags = [
+  "#AIIMS", "#Numbers", "#TheCommons", "#Problems", "#ImageBased", "#RecentUpdates",
+  "#Controversial", "#recentNEET", "#Investigation_of_Choice", "#Eponyms", "#Drug Of Choice",
+  "#Criteria", "#Instruments", "#Slides", "#Clinical", "#GIFBased",
+];
+
+// Questions for a custom module. Only the question from the design exists so far.
+export const customModuleQuestions: SubjectQuestion[] = [
+  moduleQuestions["biochemistry/glycolysis-and-gluconeogenesis"][0],
+];
+
+// Placeholder tests copied from the design. Only the Grand Tests that are fully visible there are listed.
+export const testSeriesYear = "2025 - 26";
+
+export const testSeries: Record<TestKind, TestItem[]> = {
+  grand: [
+    { title: "Grand Test 1 - INICET Pattern", date: "2025-09-08", mcqs: 200, minutes: 180, pattern: "INICET", locked: true },
+    { title: "Grand Test 2 - NEET Pattern", date: "2025-09-22", mcqs: 200, minutes: 180, pattern: "NEET", mock: true },
+    { title: "Grand Test 3 - INICET Pattern", date: "2025-10-06", mcqs: 200, minutes: 180, pattern: "INICET", locked: true },
+    { title: "National INI-CET Mock 2025 Nov Session", date: "2025-10-22", mcqs: 200, minutes: 180, pattern: "INICET", locked: true },
+    { title: "Grand Test 4 - NEET Pattern", date: "2025-10-27", mcqs: 200, minutes: 180, pattern: "NEET", mock: true },
+  ],
+  mini: [],
+  subject: [],
+};
+
+// The test attempt screen. Only the question from the design exists so far.
+export const testAttemptTotal = 25;
+export const testAttemptQuestions: SubjectQuestion[] = customModuleQuestions;
+
+// Sample progress shown when the test screen opens, copied from the design
+// (question 1 answered, 2 marked, 3-5 not answered, and so on). Retake clears it.
+export const testAttemptSampleStatuses: TestQuestionStatus[] = ["answered","marked","notAnswered","notAnswered","notAnswered","notVisited","notVisited","notVisited","answered","answered","answered","marked","notVisited","notVisited","answered","answered","answered","answeredMarked","answeredMarked","answered","marked","notAnswered","notAnswered","notAnswered","notAnswered"];

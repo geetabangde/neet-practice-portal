@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import ProDialog from "./ProDialog";
 import type { SubjectModule } from "@/types/dashboard";
 import { ArrowRightIcon, ChevronDownIcon, DocIcon, LockIcon, StarIcon } from "./icons";
 
@@ -20,6 +21,7 @@ type ModuleListProps = {
 export default function ModuleList({ subject, modules }: ModuleListProps) {
   const [sort, setSort] = useState<SortKey>("number");
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [proOpen, setProOpen] = useState(false);
 
   // The number badge keeps the original position, even after sorting or filtering
   const numbered = modules.map((module, index) => ({ module, number: index + 1 }));
@@ -98,13 +100,25 @@ export default function ModuleList({ subject, modules }: ModuleListProps) {
                 ) : (
                   <span aria-hidden="true" />
                 )}
-                <Link
-                  href={`/dashboard/${subject}/modules/${module.slug}`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                >
-                  Start Module
-                  <ArrowRightIcon className="h-4 w-4" />
-                </Link>
+                {module.locked ? (
+                  <button
+                    suppressHydrationWarning
+                    type="button"
+                    onClick={() => setProOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    Start Module
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <Link
+                    href={`/dashboard/${subject}/modules/${module.slug}`}
+                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    Start Module
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </Link>
+                )}
               </div>
             </li>
           ))}
@@ -112,6 +126,7 @@ export default function ModuleList({ subject, modules }: ModuleListProps) {
       ) : (
         <p className="mt-5 rounded-xl bg-white p-6 text-sm text-slate-600">No modules match this filter.</p>
       )}
+      <ProDialog open={proOpen} onClose={() => setProOpen(false)} />
     </>
   );
 }

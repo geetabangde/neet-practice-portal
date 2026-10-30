@@ -76,3 +76,60 @@ export type BookmarkItem = {
   // Tailwind text colour for the small subject label
   labelClass: string;
 };
+
+export type PlanOption = {
+  months: number;
+  price: number;
+  // Price before the discount, shown struck through
+  originalPrice: number;
+  recommended?: boolean;
+};
+
+export type Plan = {
+  name: string;
+  audience: string;
+  includes: string;
+  // Shown in the "Learn More" pop-up. Missing until the details are provided.
+  features?: string[];
+  options: PlanOption[];
+  // Duration (in months) that starts out selected
+  defaultMonths?: number;
+  popular?: boolean;
+};
+
+export type TestKind = "grand" | "mini" | "subject";
+
+export type TestItem = {
+  title: string;
+  // Exam day as YYYY-MM-DD
+  date: string;
+  mcqs: number;
+  minutes: number;
+  pattern: "INICET" | "NEET";
+  // Locked tests show the "GET" badge
+  locked?: boolean;
+  // Free practice tests show the "Mock Test" tag
+  mock?: boolean;
+};
+
+// Text with some words in bold, e.g. [{ text: "Note: ", bold: true }, { text: "..." }]
+export type RichText = string | { text: string; bold?: boolean }[];
+
+export type InstructionItem = {
+  text: RichText;
+  // Whole item is bold
+  bold?: boolean;
+  bullets?: RichText[];
+  // Shows the question palette colour legend under this item
+  palette?: boolean;
+};
+
+export type InstructionGroup = {
+  heading: string;
+  // Number of the first item. The numbering carries on across groups.
+  start: number;
+  items: InstructionItem[];
+};
+
+// How a question shows up in the test's question palette
+export type TestQuestionStatus = "notVisited" | "notAnswered" | "answered" | "marked" | "answeredMarked";

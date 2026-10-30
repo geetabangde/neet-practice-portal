@@ -60,7 +60,7 @@ export default function DashboardShell({ title, children }: DashboardShellProps)
             </div>
           </header>
 
-          <div className="flex flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6">{children}</div>
+          <div className="relative flex flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 [&>*]:shrink-0">{children}</div>
         </div>
       </div>
     </div>
