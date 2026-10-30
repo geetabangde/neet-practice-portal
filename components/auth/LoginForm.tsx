@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { OTP_LENGTH } from "@/lib/schemas/fields";
@@ -11,6 +12,7 @@ import { DEMO_NOTE } from "./demo";
 import { primaryButtonClass } from "./styles";
 
 export default function LoginForm() {
+  const router = useRouter();
   // false = asking for the mobile number, true = OTP box is showing
   const [otpStep, setOtpStep] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -35,7 +37,8 @@ export default function LoginForm() {
       setNotice(`No OTP was sent. ${DEMO_NOTE} Enter any ${OTP_LENGTH} digits to continue.`);
       return;
     }
-    setNotice(`Signed-in screen is not built yet. ${DEMO_NOTE}`);
+    // Demo: nothing is verified. With a backend, check the OTP on the server first.
+    router.push("/dashboard");
   };
 
   return (

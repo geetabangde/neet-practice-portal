@@ -3,7 +3,9 @@ import ButtonLink from "@/components/ui/Button";
 import { CheckIcon } from "@/components/ui/Icons";
 import { practiceChecklist } from "@/data/landing";
 
-export default function PracticePreview() {
+// asPage: this section is the main content of its own page, so its heading is the h1
+export default function PracticePreview({ asPage = false }: { asPage?: boolean }) {
+  const Heading = asPage ? "h1" : "h2";
   return (
     <section id="practice" aria-labelledby="practice-heading" className="bg-white py-16 sm:py-24">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.05fr]">
@@ -11,13 +13,13 @@ export default function PracticePreview() {
           <span className="inline-block rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent-dark">
             Try it now
           </span>
-          <h2
+          <Heading
             id="practice-heading"
             className="mt-4 text-3xl font-bold leading-tight tracking-tight text-black sm:text-4xl lg:text-[40px]"
           >
             Practice With The Exact{" "}
             <span className="text-accent">Platform You&apos;ll Use.</span>
-          </h2>
+          </Heading>
           <p className="mt-4 max-w-md text-sm text-slate-700">
             Same timer, same navigator, same peer percentages. Answer the sample
             question and see how a session feels.

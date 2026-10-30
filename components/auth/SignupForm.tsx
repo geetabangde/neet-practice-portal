@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { examOptions } from "@/data/landing";
@@ -12,6 +13,7 @@ import { DEMO_NOTE } from "./demo";
 import { outlineButtonClass, primaryButtonClass } from "./styles";
 
 export default function SignupForm() {
+  const router = useRouter();
   // false = details screen, true = OTP screen
   const [otpStep, setOtpStep] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -38,13 +40,14 @@ export default function SignupForm() {
   // Runs only when the active schema passes. With a backend, the values would
   // be sent from here, and the server must validate them again.
   // Never log the values: they contain personal details and an OTP.
-  const onValid: SubmitHandler<SignupFormValues> = (values) => {
+  const onValid: SubmitHandler<SignupFormValues> = () => {
     if (!otpStep) {
       setOtpStep(true);
       setNotice(`No OTP was sent. ${DEMO_NOTE} Enter any ${OTP_LENGTH} digits to continue.`);
       return;
     }
-    setNotice(`Thanks, ${values.name}. No account was created. ${DEMO_NOTE}`);
+    // Demo: no account is created. With a backend, create it and check the OTP on the server first.
+    router.push("/dashboard");
   };
 
   return (

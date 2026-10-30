@@ -5,7 +5,8 @@ import SectionHeading from "@/components/ui/SectionHeading";
 import { MinusIcon, PlusIcon } from "@/components/ui/Icons";
 import { faqs } from "@/data/landing";
 
-export default function FAQSection() {
+// asPage: this section is the main content of its own page, so its heading is the h1
+export default function FAQSection({ asPage = false }: { asPage?: boolean }) {
   // Index of the open item, or null when all are closed (first one starts open)
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const baseId = useId();
@@ -14,6 +15,7 @@ export default function FAQSection() {
     <section id="faq" aria-labelledby="faq-heading" className="bg-tint py-16 sm:py-24">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <SectionHeading
+          as={asPage ? "h1" : "h2"}
           id="faq-heading"
           badge="Still deciding?"
           title="Everything You"

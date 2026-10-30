@@ -2,11 +2,13 @@ import Image from "next/image";
 import SectionHeading from "@/components/ui/SectionHeading";
 import { features } from "@/data/landing";
 
-export default function FeaturesSection() {
+// asPage: this section is the main content of its own page, so its heading is the h1
+export default function FeaturesSection({ asPage = false }: { asPage?: boolean }) {
   return (
     <section id="features" aria-labelledby="features-heading" className="bg-tint py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading
+          as={asPage ? "h1" : "h2"}
           id="features-heading"
           badge="Features"
           title="Top Features That"

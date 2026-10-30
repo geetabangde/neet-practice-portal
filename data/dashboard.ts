@@ -114,19 +114,37 @@ export const bookmarkQuestions: Record<string, SubjectQuestion[]> = {
   ],
 };
 
-// Placeholder plans and prices copied from the design (every option shows the same price there)
+// Plans and prices for NEET PG & FMGE
 export const plans: Plan[] = [
   {
     name: "Plan A",
     audience: "NEET PG / FMGE",
     includes: "Test Series",
-    options: [{ months: 9, price: 16999, originalPrice: 25999 }, { months: 12, price: 16999, originalPrice: 25999 }],
+    options: [
+      { months: 9, price: 9999, originalPrice: 12999 },
+      { months: 12, price: 11999, originalPrice: 15999, recommended: true },
+    ],
+    features: [
+      "390+ total Tests (130+ Grand Tests)",
+      "NEET PG, INI-CET & FMGE pattern mock tests",
+      "Subject-wise tests & mini mock tests",
+      "AI-based national ranking & percentile analysis",
+      "Detailed question explanations & key clinical takeaways",
+    ],
+    defaultMonths: 9,
   },
   {
     name: "Plan C",
     audience: "NEET PG / FMGE",
     includes: "Videos + QBank + Test Series",
-    options: [{ months: 3, price: 16999, originalPrice: 25999 }, { months: 9, price: 16999, originalPrice: 25999 }, { months: 12, price: 16999, originalPrice: 25999, recommended: true }, { months: 15, price: 16999, originalPrice: 25999 }, { months: 24, price: 16999, originalPrice: 25999 }, { months: 36, price: 16999, originalPrice: 25999 }],
+    options: [
+      { months: 3, price: 16999, originalPrice: 25999 },
+      { months: 9, price: 23999, originalPrice: 31999 },
+      { months: 12, price: 28999, originalPrice: 37999, recommended: true },
+      { months: 15, price: 33999, originalPrice: 42999 },
+      { months: 24, price: 42999, originalPrice: 52999 },
+      { months: 36, price: 49999, originalPrice: 61999 },
+    ],
     features: [
       "810+ hours of Video classes",
       "Integrated conceptual content across all 19 subjects",
@@ -136,16 +154,29 @@ export const plans: Plan[] = [
       "QBank with 18,500+ MCQs",
       "Magic Module – curated list of MCQs that you got wrong",
       "Updated Schema – all important & repeatedly asked topics at a glance",
-      "390+ total Tests (130+ Grand Tests)"
+      "390+ total Tests (130+ Grand Tests)",
     ],
-    defaultMonths: 12,
+    defaultMonths: 3,
     popular: true,
   },
   {
     name: "Plan B",
     audience: "NEET PG / FMGE",
     includes: "QBank + Test Series",
-    options: [{ months: 3, price: 16999, originalPrice: 25999 }, { months: 9, price: 16999, originalPrice: 25999 }, { months: 12, price: 16999, originalPrice: 25999 }],
+    options: [
+      { months: 3, price: 6999, originalPrice: 12999 },
+      { months: 9, price: 11999, originalPrice: 18999 },
+      { months: 12, price: 14999, originalPrice: 21999, recommended: true },
+    ],
+    features: [
+      "QBank with 18,500+ MCQs",
+      "Magic Module – curated list of MCQs that you got wrong",
+      "Updated Schema – all important & repeatedly asked topics at a glance",
+      "390+ total Tests (130+ Grand Tests)",
+      "High-yield image-based and clinical questions",
+      "Detailed explanations with key takeaways",
+    ],
+    defaultMonths: 3,
   },
 ];
 

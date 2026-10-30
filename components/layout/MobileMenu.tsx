@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { NavLink } from "@/types/landing";
 
 // Client Component: it needs useState to open/close the menu
 export default function MobileMenu({ links }: { links: NavLink[] }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="md:hidden">
@@ -35,7 +37,10 @@ export default function MobileMenu({ links }: { links: NavLink[] }) {
                 <Link
                   href={link.href}
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+                  aria-current={pathname === link.href ? "page" : undefined}
+                  className={`block rounded-lg px-3 py-2 text-sm hover:bg-white/10 ${
+                    pathname === link.href ? "text-accent" : "text-white/80"
+                  }`}
                 >
                   {link.label}
                 </Link>

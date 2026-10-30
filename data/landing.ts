@@ -8,11 +8,11 @@ import type {
 } from "@/types/landing";
 
 export const navLinks: NavLink[] = [
-  { label: "Practice", href: "#practice" },
-  { label: "Courses", href: "#courses" },
-  { label: "Features", href: "#features" },
-  { label: "Subjects", href: "#subjects" },
-  { label: "FAQ", href: "#faq" },
+  { label: "Practice", href: "/practice" },
+  { label: "Courses", href: "/courses" },
+  { label: "Features", href: "/features" },
+  { label: "Subjects", href: "/subjects" },
+  { label: "FAQ", href: "/faq" },
 ];
 
 export const tickerItems: string[] = [
@@ -162,17 +162,17 @@ export const footerColumns: FooterColumn[] = [
   {
     title: "Courses",
     links: [
-      { label: "Plan A", href: "#courses" },
-      { label: "Plan B", href: "#courses" },
-      { label: "Plan C", href: "#courses" },
+      { label: "Plan A", href: "/courses" },
+      { label: "Plan B", href: "/courses" },
+      { label: "Plan C", href: "/courses" },
     ],
   },
   {
     title: "Explore",
     links: [
-      { label: "Practice", href: "#practice" },
-      { label: "Features", href: "#features" },
-      { label: "Subjects", href: "#subjects" },
+      { label: "Practice", href: "/practice" },
+      { label: "Features", href: "/features" },
+      { label: "Subjects", href: "/subjects" },
     ],
   },
   {
@@ -182,5 +182,20 @@ export const footerColumns: FooterColumn[] = [
       { label: "Terms of Use", href: "#top" },
       { label: "Privacy Policy", href: "#top" },
     ],
+  },
+];
+
+export const howItWorks: { title: string; description: string }[] = [
+  {
+    title: "Pick a module",
+    description: "Choose a subject and module, or build a custom set by difficulty, length and subjects.",
+  },
+  {
+    title: "Solve like the exam",
+    description: "Use the same timer and question navigator as the exam interface.",
+  },
+  {
+    title: "Review and improve",
+    description: "See explanations, peer percentages and a score report after every test.",
   },
 ];
