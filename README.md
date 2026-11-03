@@ -1,10 +1,11 @@
 # NEET PG Practice Portal
 
-One repository with two separate applications:
+One repository with three separate applications:
 
 ```
 neet-practice-portal/
 ├── frontend/   Student website (Next.js, React, TypeScript, Tailwind CSS)
+├── admin/      Admin panel (Next.js, TypeScript, Tailwind CSS, dummy data)
 ├── backend/    API server (Node.js, Express, TypeScript)
 ├── .gitignore
 └── README.md
@@ -28,6 +29,16 @@ Other commands: `npm run lint`, `npx tsc --noEmit`, `npm run build`, `npm start`
 
 `frontend/AGENTS.md` is created and kept up to date by Next.js itself. Leave it where it is.
 
+## Admin panel (http://localhost:3001)
+
+```bash
+cd admin
+npm install        # first time only
+npm run dev        # development server
+```
+
+Other commands: `npm run lint`, `npm run typecheck`, `npm run build`, `npm start`. It shows dummy data only and is not connected to the backend yet. See [admin/README.md](admin/README.md) for the folder structure and how to add a page.
+
 ## Backend (http://localhost:5000)
 
 ```bash
@@ -50,11 +61,11 @@ The backend has only this health endpoint for now. There is no database, login o
 ## Environment files
 
 - Real `.env` files hold secrets. They are ignored by Git and must never be committed.
-- `backend/.env.example` shows the names of the settings with placeholder values. It is safe to commit.
+- `backend/.env.example` and `admin/.env.example` show the names of the settings with placeholder values. They are safe to commit.
 
 ## How the two apps will talk to each other
 
-The browser loads the website from the frontend (port 3000). When the website needs data, it sends a request to the backend (port 5000), for example `fetch("http://localhost:5000/api/health")`. The backend only accepts browser requests from the address in `FRONTEND_ORIGIN` (CORS). Each application can be started, tested and deployed on its own.
+The browser loads the student website from the frontend (port 3000) and the admin panel from the admin app (port 3001). When they need data, they send a request to the backend (port 5000), for example `fetch("http://localhost:5000/api/health")`. The backend only accepts browser requests from the address in `FRONTEND_ORIGIN` (CORS). When the admin panel starts calling the API, its address (`http://localhost:3001`) must be allowed there too. Each application can be started, tested and deployed on its own.
 
 ## Deploying the frontend
 

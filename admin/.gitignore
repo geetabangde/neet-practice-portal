@@ -1,0 +1,26 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# Next.js build output
+/.next/
+/out/
+/build
+
+# Generated files
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment files. Real ones hold secrets; only ".env.example" is committed.
+.env
+.env.*
+!.env.example
+
+# Logs and misc
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+.DS_Store
+*.pem
+.vercel
