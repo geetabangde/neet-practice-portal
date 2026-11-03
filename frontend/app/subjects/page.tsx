@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import PageFrame from "@/components/layout/PageFrame";
 import PageCta from "@/components/sections/PageCta";
-import SubjectsSection from "@/components/sections/SubjectsSection";
+import SubjectsShowcase from "@/components/sections/SubjectsShowcase";
 
 export const metadata: Metadata = {
   title: "Subjects | HN QBank",
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function SubjectsPage() {
   return (
     <PageFrame>
-      <SubjectsSection asPage />
+      <SubjectsShowcase />
       <PageCta
         title="Start With The Subject"
         highlight="You Fear Most."

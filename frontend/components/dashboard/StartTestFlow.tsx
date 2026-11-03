@@ -144,7 +144,11 @@ export default function StartTestFlow({ instructions, ndaTitle, ndaParagraphs }:
             >
               No
             </button>
-            <Link href="/dashboard/test-series/attempt" className={`${primaryButtonClass} block text-center`}>
+            <Link
+              href="/dashboard/test-series/attempt"
+              onClick={close}
+              className={`${primaryButtonClass} block text-center`}
+            >
               Yes
             </Link>
           </div>

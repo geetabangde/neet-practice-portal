@@ -80,6 +80,11 @@ export default function TestResult({
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
+    // Also close when the page is left or hidden. Next keeps the previous page alive, and a modal
+    // that stays open there would keep blocking (freezing) the next page.
+    return () => {
+      if (dialog.open) dialog.close();
+    };
   }, [open]);
 
   const percent = canGrade ? Math.round((correct / total) * 100) : 0;

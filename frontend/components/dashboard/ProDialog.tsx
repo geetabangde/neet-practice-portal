@@ -18,6 +18,11 @@ export default function ProDialog({ open, onClose }: ProDialogProps) {
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
+    // Also close when the page is left or hidden. Next keeps the previous page alive, and a modal
+    // that stays open there would keep blocking (freezing) the next page.
+    return () => {
+      if (dialog.open) dialog.close();
+    };
   }, [open]);
 
   return (
@@ -55,6 +60,7 @@ export default function ProDialog({ open, onClose }: ProDialogProps) {
 
         <Link
           href="/dashboard/plans"
+          onClick={onClose}
           className="mt-6 block w-full rounded-lg bg-accent px-4 py-2.5 text-center text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           Subscribe Now

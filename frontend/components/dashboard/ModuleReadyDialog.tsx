@@ -28,6 +28,11 @@ export default function ModuleReadyDialog({ open, onClose, rows, startHref }: Mo
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
+    // Also close when the page is left or hidden. Next keeps the previous page alive, and a modal
+    // that stays open there would keep blocking (freezing) the next page.
+    return () => {
+      if (dialog.open) dialog.close();
+    };
   }, [open]);
 
   return (
@@ -88,6 +93,7 @@ export default function ModuleReadyDialog({ open, onClose, rows, startHref }: Mo
         <div className="mt-8 flex justify-center">
           <Link
             href={startHref}
+            onClick={onClose}
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             Start Module

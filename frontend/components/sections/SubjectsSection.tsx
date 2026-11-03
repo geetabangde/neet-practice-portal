@@ -2,8 +2,7 @@ import Image from "next/image";
 import SectionHeading from "@/components/ui/SectionHeading";
 import { subjects } from "@/data/landing";
 
-// asPage: this section is the main content of its own page, so its heading is the h1
-export default function SubjectsSection({ asPage = false }: { asPage?: boolean }) {
+export default function SubjectsSection() {
   return (
     <section
       id="subjects"
@@ -12,7 +11,6 @@ export default function SubjectsSection({ asPage = false }: { asPage?: boolean }
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading
-          as={asPage ? "h1" : "h2"}
           id="subjects-heading"
           dark
           badge="Subjects"

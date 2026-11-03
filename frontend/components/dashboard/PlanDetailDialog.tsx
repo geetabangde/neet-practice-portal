@@ -20,6 +20,11 @@ export default function PlanDetailDialog({ plan, open, onClose }: PlanDetailDial
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
+    // Also close when the page is left or hidden. Next keeps the previous page alive, and a modal
+    // that stays open there would keep blocking (freezing) the next page.
+    return () => {
+      if (dialog.open) dialog.close();
+    };
   }, [open]);
 
   return (

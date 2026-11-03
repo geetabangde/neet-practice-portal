@@ -1,6 +1,6 @@
 import Image from "next/image";
 import SectionHeading from "@/components/ui/SectionHeading";
-import { features } from "@/data/landing";
+import { features, tickerItems } from "@/data/landing";
 
 // asPage: this section is the main content of its own page, so its heading is the h1
 export default function FeaturesSection({ asPage = false }: { asPage?: boolean }) {
@@ -14,11 +14,23 @@ export default function FeaturesSection({ asPage = false }: { asPage?: boolean }
           title="Top Features That"
           highlight="Help You Crack NEET PG."
         />
+        {asPage ? (
+          <ul className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-center gap-2">
+            {tickerItems.map((item) => (
+              <li
+                key={item}
+                className="rounded-full border border-accent/30 bg-white px-3 py-1 text-xs text-brand-800"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <ul className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
             <li
               key={f.title}
-              className="rounded-2xl border-2 border-accent/20 bg-white p-4 transition-colors hover:border-accent"
+              className="rounded-2xl border-2 border-accent/20 bg-white p-4 transition duration-200 hover:-translate-y-1 hover:border-accent hover:shadow-lg"
             >
               <Image
                 src={f.image}
