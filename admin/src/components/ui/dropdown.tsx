@@ -109,8 +109,12 @@ export function MenuItem({ icon, onClick, danger, children }: MenuItemProps) {
   );
 }
 
-export function MenuLink({ icon, href, children }: { icon?: ReactNode; href: string; children: ReactNode }) {
-  const close = useClose();
+export function MenuLink({ icon, href, children, onClick }: { icon?: ReactNode; href: string; children: ReactNode; onClick?: () => void }) {
+  const closeMenu = useClose();
+  const close = () => {
+    onClick?.();
+    closeMenu();
+  };
   // A full address (http...) opens the other site in a new tab; a path stays inside the admin panel
   if (href.startsWith("http://") || href.startsWith("https://")) {
     return (

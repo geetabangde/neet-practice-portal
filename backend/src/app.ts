@@ -1,18 +1,25 @@
 import cors from "cors";
 import express, { type ErrorRequestHandler, type Express } from "express";
+import { adminRouter } from "./routes/admin.routes";
+import { authRouter } from "./routes/auth.routes";
+import { healthRouter } from "./routes/health.routes";
 
 // Builds the Express app. server.ts starts it; keeping the two apart makes the app easy to test later.
 export function createApp(): Express {
   const app = express();
 
-  // Only the student frontend may call this API from a browser
-  const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
-  app.use(cors({ origin: frontendOrigin }));
+  // Only the student site and the admin panel may call this API from a browser
+  const allowedOrigins = [process.env.FRONTEND_ORIGIN ?? "http://localhost:3000", process.env.ADMIN_ORIGIN ?? "http://localhost:3001"];
+  app.use(cors({ origin: allowedOrigins }));
   app.use(express.json());
 
-  app.get("/api/health", (_req, res) => {
-    res.json({ success: true, message: "NEET PG backend is running" });
-  });
+  // GET /api/health and GET /api/health/db
+  app.use("/api/health", healthRouter);
+
+  // POST /api/auth/admin/login
+  app.use("/api/auth", authRouter);
+  // GET /api/admin/profile (admin token required)
+  app.use("/api/admin", adminRouter);
 
   // Any other URL
   app.use((_req, res) => {

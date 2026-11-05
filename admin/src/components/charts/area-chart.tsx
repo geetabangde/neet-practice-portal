@@ -63,15 +63,15 @@ export function AreaChart({ data, title, format = plain, formatTick = format, he
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full overflow-visible">
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+                <stop offset="0%" stopColor="#0cc1e0" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#0cc1e0" stopOpacity="0" />
               </linearGradient>
             </defs>
             <path d={area} fill={`url(#${gradientId})`} />
             <path
               d={line}
               fill="none"
-              stroke="#6366f1"
+              stroke="#0cc1e0"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"

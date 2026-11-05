@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox, TextField } from "@/components/ui/form-controls";
+import { loginAdmin, saveToken } from "@/lib/auth";
 
 interface LoginErrors {
   email?: string;
@@ -16,12 +17,10 @@ function validate(email: string, password: string): LoginErrors {
   if (!email.trim()) errors.email = "Enter your email address.";
   else if (!/^\S+@\S+\.\S+$/.test(email.trim())) errors.email = "Enter a valid email address.";
   if (!password) errors.password = "Enter your password.";
-  else if (password.length < 6) errors.password = "The password must be at least 6 characters.";
   return errors;
 }
 
-// Demo login: there is no server yet, so any valid email and a 6+ character password works.
-// When the backend exists, the request to it goes in onSubmit.
+// Signs in through the backend (POST /api/auth/admin/login) and keeps the token it returns.
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -30,16 +29,24 @@ export function LoginForm() {
   const [remember, setRemember] = useState(true);
   const [errors, setErrors] = useState<LoginErrors>({});
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState("");
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const found = validate(email, password);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    // Pretend to wait for a server, so the loading state can be seen
+    setServerError("");
     setLoading(true);
-    setTimeout(() => router.push("/dashboard"), 900);
+    const result = await loginAdmin(email.trim(), password);
+    if (!result.ok) {
+      setServerError(result.message);
+      setLoading(false);
+      return;
+    }
+    saveToken(result.token, remember);
+    router.replace("/dashboard");
   }
 
   return (
@@ -79,15 +86,18 @@ export function LoginForm() {
         </div>
       </div>
 
+      {serverError ? (
+        <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {serverError}
+        </p>
+      ) : null}
+
       <Checkbox label="Remember me" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
 
       <Button type="submit" size="lg" loading={loading} className="w-full">
         {loading ? "Signing in…" : "Sign in"}
       </Button>
 
-      <p className="rounded-lg bg-slate-50 px-4 py-3 text-center text-xs text-slate-500">
-        Demo login: any valid email and a password of 6 or more characters works.
-      </p>
     </form>
   );
 }

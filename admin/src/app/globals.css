@@ -1,14 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f3fbfd;
+  --foreground: #04202a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The same brand colours as the student site (frontend/app/globals.css) */
+@theme {
+  --color-brand-950: #04202a;
+  --color-brand-900: #07313b;
+  --color-brand-800: #0b4452;
+  --color-tint: #f3fbfd;
+
+  /* The panel's classes use "indigo" for the main colour. Here "indigo" is the brand cyan,
+     so every button, link, badge and chart picks up the student-site accent at once. */
+  --color-indigo-50: #e6f8fc;
+  --color-indigo-100: #ccf1f8;
+  --color-indigo-200: #99e3f1;
+  --color-indigo-300: #66d5ea;
+  --color-indigo-400: #33c9e4;
+  --color-indigo-500: #0cc1e0;
+  --color-indigo-600: #0aa4bf;
+  --color-indigo-700: #077085;
+  --color-indigo-800: #0b4452;
+  --color-indigo-900: #07313b;
+  --color-indigo-950: #04202a;
 }
 
 body {

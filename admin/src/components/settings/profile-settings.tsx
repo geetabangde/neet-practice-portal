@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { ADMIN_PROFILE } from "@/components/layout/header";
+import { roleLabel } from "@/components/layout/header";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -16,8 +17,9 @@ interface ProfileErrors {
 
 export function ProfileSettings() {
   const toast = useToast();
-  const [name, setName] = useState(ADMIN_PROFILE.name);
-  const [email, setEmail] = useState(ADMIN_PROFILE.email);
+  const { admin } = useAuth();
+  const [name, setName] = useState(admin.name);
+  const [email, setEmail] = useState(admin.email);
   const [phone, setPhone] = useState("+91 98765 43210");
   const [bio, setBio] = useState("Manages content and students for the NEET PG platform.");
   const [errors, setErrors] = useState<ProfileErrors>({});
@@ -42,12 +44,12 @@ export function ProfileSettings() {
             <Avatar name={name || "A"} size="lg" />
             <div>
               <p className="font-semibold text-slate-900">{name || "Your name"}</p>
-              <p className="text-sm text-slate-500">{ADMIN_PROFILE.role}</p>
+              <p className="text-sm text-slate-500">{roleLabel(admin.role)}</p>
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField label="Full name" required value={name} onChange={(e) => setName(e.target.value)} error={errors.name} />
-            <TextField label="Role" value={ADMIN_PROFILE.role} readOnly disabled hint="Only a super admin can change roles." />
+            <TextField label="Role" value={roleLabel(admin.role)} readOnly disabled hint="Only a super admin can change roles." />
             <TextField label="Email address" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} />
             <TextField label="Mobile number" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} error={errors.phone} />
             <TextAreaField label="About" rows={3} value={bio} onChange={(e) => setBio(e.target.value)} wrapperClassName="sm:col-span-2" />

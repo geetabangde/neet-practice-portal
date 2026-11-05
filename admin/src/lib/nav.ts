@@ -1,5 +1,4 @@
 import {
-  Bell,
   ChartLine,
   ClipboardCheck,
   ClipboardList,
@@ -58,7 +57,6 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: "System",
     items: [
-      { label: "Notifications", href: "/notifications", icon: Bell },
       { label: "Admin Settings", href: "/settings", icon: Settings },
     ],
   },
