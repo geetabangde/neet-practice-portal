@@ -6,7 +6,7 @@ import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { SelectField, TextField } from "@/components/ui/form-controls";
 import { Modal } from "@/components/ui/modal";
-import { nextId } from "@/lib/ids";
+import { createTopic, updateTopic } from "@/lib/topics-api";
 import type { ActiveStatus, Topic } from "@/types";
 
 const FORM_ID = "topic-form";
@@ -17,16 +17,19 @@ export type TopicModalState = Topic | "new" | null;
 interface TopicErrors {
   name?: string;
   subjectId?: string;
+  form?: string;
 }
 
 function TopicForm({
   topic,
   defaultSubjectId,
   onSaved,
+  onSavingChange,
 }: {
   topic: Topic | null;
   defaultSubjectId: string;
   onSaved: () => void;
+  onSavingChange: (saving: boolean) => void;
 }) {
   const { topics, subjects } = useAdminStore();
   const toast = useToast();
@@ -36,7 +39,7 @@ function TopicForm({
   const [status, setStatus] = useState<ActiveStatus>(topic?.status ?? "active");
   const [errors, setErrors] = useState<TopicErrors>({});
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = name.trim();
     const found: TopicErrors = {};
@@ -49,12 +52,22 @@ function TopicForm({
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
+    onSavingChange(true);
+    const fields = { subjectId, name: trimmed, status };
+    const result = topic ? await updateTopic(topic.id, fields) : await createTopic(fields);
+    onSavingChange(false);
+
+    if (!result.ok) {
+      // 409 = the database says this name is taken inside the subject
+      setErrors(result.status === 409 ? { name: result.message } : { form: result.message });
+      return;
+    }
     if (topic) {
-      topics.update(topic.id, { name: trimmed, subjectId, status });
-      toast({ title: "Topic updated", description: `${trimmed} was saved (demo data).` });
+      topics.update(topic.id, result.data);
+      toast({ title: "Topic updated", description: `${result.data.name} was saved.` });
     } else {
-      topics.add({ id: nextId("t", topics.items.map((t) => t.id)), subjectId, name: trimmed, status });
-      toast({ title: "Topic added", description: `${trimmed} was added (demo data).` });
+      topics.add(result.data);
+      toast({ title: "Topic added", description: `${result.data.name} was added.` });
     }
     onSaved();
   }
@@ -87,6 +100,12 @@ function TopicForm({
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
       </SelectField>
+
+      {errors.form ? (
+        <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errors.form}
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -100,6 +119,7 @@ interface TopicFormModalProps {
 
 export function TopicFormModal({ state, defaultSubjectId, onClose }: TopicFormModalProps) {
   const editing = state !== null && state !== "new" ? state : null;
+  const [saving, setSaving] = useState(false);
 
   return (
     <Modal
@@ -109,17 +129,23 @@ export function TopicFormModal({ state, defaultSubjectId, onClose }: TopicFormMo
       description={editing ? "Change the topic's details." : "Create a topic inside a subject."}
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" form={FORM_ID}>
+          <Button type="submit" form={FORM_ID} loading={saving}>
             {editing ? "Save changes" : "Add topic"}
           </Button>
         </>
       }
     >
       {state !== null ? (
-        <TopicForm key={editing?.id ?? "new"} topic={editing} defaultSubjectId={defaultSubjectId} onSaved={onClose} />
+        <TopicForm
+          key={editing?.id ?? "new"}
+          topic={editing}
+          defaultSubjectId={defaultSubjectId}
+          onSaved={onClose}
+          onSavingChange={setSaving}
+        />
       ) : null}
     </Modal>
   );

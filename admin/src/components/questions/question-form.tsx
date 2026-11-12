@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox, SelectField, TextAreaField, TextField } from "@/components/ui/form-controls";
 import { Segmented } from "@/components/ui/segmented";
 import { cn } from "@/lib/cn";
-import { nextId, todayIso } from "@/lib/ids";
+import { createQuestion, updateQuestion } from "@/lib/questions-api";
 import type { Difficulty, OptionKey, Question, QuestionStatus, QuestionType } from "@/types";
 import { ImageUpload, type ChosenImage } from "./image-upload";
 
@@ -103,6 +103,7 @@ export function QuestionForm({ question }: QuestionFormProps) {
   );
   const [imageError, setImageError] = useState<string>();
   const [errors, setErrors] = useState<FormErrors>({ options: {} });
+  const [saving, setSaving] = useState<QuestionStatus | null>(null);
 
   const topicOptions = topics.items.filter((topic) => topic.subjectId === values.subjectId);
 
@@ -124,7 +125,7 @@ export function QuestionForm({ question }: QuestionFormProps) {
     setErrors((prev) => ({ ...prev, correct: undefined }));
   }
 
-  function save(mode: QuestionStatus) {
+  async function save(mode: QuestionStatus) {
     const found = validate(values, mode);
     setErrors(found);
     if (hasErrors(found)) {
@@ -136,8 +137,7 @@ export function QuestionForm({ question }: QuestionFormProps) {
       return;
     }
 
-    const record: Question = {
-      id: question?.id ?? nextId("q", questions.items.map((q) => q.id)),
+    const fields = {
       subjectId: values.subjectId,
       topicId: values.topicId,
       text: values.text.trim(),
@@ -148,16 +148,23 @@ export function QuestionForm({ question }: QuestionFormProps) {
       explanation: values.explanation.trim(),
       reference: values.reference.trim(),
       imageName: image?.name ?? "",
-      status: mode === "published" ? "published" : "draft",
-      createdAt: question?.createdAt ?? todayIso(),
+      status: mode,
     };
 
-    if (question) questions.update(question.id, record);
-    else questions.add(record);
+    setSaving(mode);
+    const result = question ? await updateQuestion(question.id, fields) : await createQuestion(fields);
+    setSaving(null);
+    if (!result.ok) {
+      toast({ title: "The question was not saved", description: result.message, tone: "error" });
+      return;
+    }
+
+    if (question) questions.update(question.id, result.data);
+    else questions.add(result.data);
 
     toast({
       title: mode === "published" ? "Question published" : "Draft saved",
-      description: `${record.id} was saved (demo data).`,
+      description: `${result.data.id} was saved.`,
     });
     router.push("/questions");
   }
@@ -363,10 +370,23 @@ export function QuestionForm({ question }: QuestionFormProps) {
                     ? "This question is published. Saving as a draft will hide it from students."
                     : "Save a draft to finish later, or publish when the question is complete."}
                 </p>
-                <Button className="w-full" leftIcon={<Send className="h-4 w-4" />} onClick={() => save("published")}>
+                <Button
+                  className="w-full"
+                  leftIcon={<Send className="h-4 w-4" />}
+                  loading={saving === "published"}
+                  disabled={saving !== null}
+                  onClick={() => void save("published")}
+                >
                   Publish question
                 </Button>
-                <Button className="w-full" variant="outline" leftIcon={<Save className="h-4 w-4" />} onClick={() => save("draft")}>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  leftIcon={<Save className="h-4 w-4" />}
+                  loading={saving === "draft"}
+                  disabled={saving !== null}
+                  onClick={() => void save("draft")}
+                >
                   Save draft
                 </Button>
                 <Link href="/questions" className={buttonStyles({ variant: "ghost", className: "w-full" })}>

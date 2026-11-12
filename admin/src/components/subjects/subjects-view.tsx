@@ -2,6 +2,7 @@
 
 import { BookOpen, FileQuestion, Layers, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { deleteSubject, updateSubject } from "@/lib/subjects-api";
 import { PageHeader } from "@/components/common/page-header";
 import { SubjectIcon } from "@/components/common/subject-icon";
 import { useAdminStore } from "@/components/providers/admin-store-provider";
@@ -22,13 +23,33 @@ import { SubjectFormModal, type SubjectModalState } from "./subject-form-modal";
 type StatusFilter = "all" | "active" | "inactive";
 
 export function SubjectsView() {
-  const { subjects, topics, questions, removeSubject } = useAdminStore();
+  const { subjects, contentStatus, reloadContent, topics, questions, removeSubject } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [modal, setModal] = useState<SubjectModalState>(null);
   const [deleting, setDeleting] = useState<Subject | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function toggleStatus(subject: Subject, active: boolean) {
+    setBusyId(subject.id);
+    const result = await updateSubject(subject.id, { status: active ? "active" : "inactive" });
+    setBusyId(null);
+    if (!result.ok) return toast({ title: "Could not update the subject", description: result.message, tone: "error" });
+    subjects.update(subject.id, { status: result.data.status });
+    toast({ title: active ? "Subject activated" : "Subject deactivated", description: subject.name });
+  }
+
+  async function confirmDelete(subject: Subject) {
+    const result = await deleteSubject(subject.id);
+    // 404 = already gone, so the list should drop it too
+    if (!result.ok && result.status !== 404) {
+      return toast({ title: "Could not delete the subject", description: result.message, tone: "error" });
+    }
+    removeSubject(subject.id);
+    toast({ title: "Subject deleted", description: `${subject.name} and its content were removed.` });
+  }
 
   const term = query.trim().toLowerCase();
   const visible = subjects.items.filter((subject) => {
@@ -64,7 +85,20 @@ export function SubjectsView() {
         />
       </div>
 
-      {visible.length === 0 ? (
+      {contentStatus === "loading" ? (
+        <p role="status" className="py-16 text-center text-sm text-slate-500">
+          Loading subjects…
+        </p>
+      ) : contentStatus === "error" ? (
+        <Card>
+          <EmptyState
+            icon={BookOpen}
+            title="Could not load subjects"
+            description="The server did not respond. Check that the backend is running."
+            action={<Button onClick={reloadContent}>Try again</Button>}
+          />
+        </Card>
+      ) : visible.length === 0 ? (
         <Card>
           <EmptyState
             icon={BookOpen}
@@ -107,10 +141,8 @@ export function SubjectsView() {
                       <Switch
                         label={`${subject.name} is active`}
                         checked={subject.status === "active"}
-                        onChange={(checked) => {
-                          subjects.update(subject.id, { status: checked ? "active" : "inactive" });
-                          toast({ title: checked ? "Subject activated" : "Subject deactivated", description: subject.name });
-                        }}
+                        disabled={busyId === subject.id}
+                        onChange={(checked) => void toggleStatus(subject, checked)}
                       />
                       Active
                     </label>
@@ -136,9 +168,7 @@ export function SubjectsView() {
         open={deleting !== null}
         onClose={() => setDeleting(null)}
         onConfirm={() => {
-          if (!deleting) return;
-          removeSubject(deleting.id);
-          toast({ title: "Subject deleted", description: `${deleting.name} and its content were removed.` });
+          if (deleting) void confirmDelete(deleting);
         }}
         title="Delete this subject?"
         description={

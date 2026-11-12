@@ -2,6 +2,7 @@
 
 import { Check, Crown, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
+import { deletePlan, updatePlan } from "@/lib/plans-api";
 import { ActiveBadge } from "@/components/common/status-badges";
 import { PageHeader } from "@/components/common/page-header";
 import { useAdminStore } from "@/components/providers/admin-store-provider";
@@ -17,17 +18,32 @@ import type { Plan } from "@/types";
 import { PlanFormModal, type PlanModalState } from "./plan-form-modal";
 
 export function PlansView() {
-  const { plans, students } = useAdminStore();
+  const { plans, students, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
 
   const [modal, setModal] = useState<PlanModalState>(null);
   const [deleting, setDeleting] = useState<Plan | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const studentCount = (planId: string) => students.items.filter((s) => s.planId === planId).length;
   // The plan with the most students gets a "Most popular" ribbon
   const mostPopularId = [...plans.items].sort((a, b) => studentCount(b.id) - studentCount(a.id))[0]?.id;
 
-  function remove(plan: Plan) {
+  async function toggleStatus(plan: Plan, active: boolean) {
+    setBusyId(plan.id);
+    const result = await updatePlan(plan.id, { status: active ? "active" : "inactive" });
+    setBusyId(null);
+    if (!result.ok) return toast({ title: "Could not update the plan", description: result.message, tone: "error" });
+    plans.update(plan.id, { status: result.data.status });
+    toast({ title: active ? "Plan activated" : "Plan deactivated", description: plan.name });
+  }
+
+  async function remove(plan: Plan) {
+    const result = await deletePlan(plan.id);
+    // 404 = already gone, so the list should drop it too
+    if (!result.ok && result.status !== 404) {
+      return toast({ title: "Could not delete the plan", description: result.message, tone: "error" });
+    }
     // Students on the deleted plan are left without a plan
     students.setItems((prev) =>
       prev.map((s) => (s.planId === plan.id ? { ...s, planId: null, planExpiresAt: null } : s)),
@@ -48,7 +64,20 @@ export function PlansView() {
         }
       />
 
-      {plans.items.length === 0 ? (
+      {contentStatus === "loading" ? (
+        <p role="status" className="py-16 text-center text-sm text-slate-500">
+          Loading plans…
+        </p>
+      ) : contentStatus === "error" ? (
+        <Card>
+          <EmptyState
+            icon={Crown}
+            title="Could not load plans"
+            description="The server did not respond. Check that the backend is running."
+            action={<Button onClick={reloadContent}>Try again</Button>}
+          />
+        </Card>
+      ) : plans.items.length === 0 ? (
         <Card>
           <EmptyState
             icon={Crown}
@@ -104,10 +133,8 @@ export function PlansView() {
                       <Switch
                         label={`${plan.name} is active`}
                         checked={plan.status === "active"}
-                        onChange={(checked) => {
-                          plans.update(plan.id, { status: checked ? "active" : "inactive" });
-                          toast({ title: checked ? "Plan activated" : "Plan deactivated", description: plan.name });
-                        }}
+                        disabled={busyId === plan.id}
+                        onChange={(checked) => void toggleStatus(plan, checked)}
                       />
                       <IconButton label={`Edit ${plan.name}`} onClick={() => setModal(plan)}>
                         <Pencil className="h-4 w-4" />
@@ -130,7 +157,7 @@ export function PlansView() {
         open={deleting !== null}
         onClose={() => setDeleting(null)}
         onConfirm={() => {
-          if (deleting) remove(deleting);
+          if (deleting) void remove(deleting);
         }}
         title="Delete this plan?"
         description={

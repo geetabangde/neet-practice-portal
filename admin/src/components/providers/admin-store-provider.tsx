@@ -1,16 +1,16 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { notificationsData } from "@/data/notifications";
 import { paymentsData } from "@/data/payments";
-import { plansData } from "@/data/plans";
-import { questionsData } from "@/data/questions";
 import { resultsData } from "@/data/results";
 import { studentsData } from "@/data/students";
-import { subjectsData } from "@/data/subjects";
-import { testsData } from "@/data/tests";
-import { topicsData } from "@/data/topics";
 import { useCollection, type Collection } from "@/hooks/use-collection";
+import { fetchPlans } from "@/lib/plans-api";
+import { fetchQuestions } from "@/lib/questions-api";
+import { fetchSubjects } from "@/lib/subjects-api";
+import { fetchTests } from "@/lib/tests-api";
+import { fetchTopics } from "@/lib/topics-api";
 import type {
   AdminNotification,
   MockTest,
@@ -29,7 +29,10 @@ import type {
 // the API instead of keeping the lists in state.
 interface AdminStore {
   students: Collection<Student>;
+  // Subjects, topics, questions, tests and plans live in the database. They load when the admin opens the panel.
   subjects: Collection<Subject>;
+  contentStatus: "loading" | "ready" | "error";
+  reloadContent: () => void;
   topics: Collection<Topic>;
   questions: Collection<Question>;
   tests: Collection<MockTest>;
@@ -48,11 +51,51 @@ const StoreContext = createContext<AdminStore | null>(null);
 
 export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const students = useCollection(studentsData);
-  const subjects = useCollection(subjectsData);
-  const topics = useCollection(topicsData);
-  const questions = useCollection(questionsData);
-  const tests = useCollection(testsData);
-  const plans = useCollection(plansData);
+  const subjects = useCollection<Subject>([]);
+  const [contentStatus, setContentStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [contentAttempt, setContentAttempt] = useState(0);
+  const { setItems: setSubjects } = subjects;
+  const topics = useCollection<Topic>([]);
+  const { setItems: setTopics } = topics;
+  const questions = useCollection<Question>([]);
+  const { setItems: setQuestions } = questions;
+  const tests = useCollection<MockTest>([]);
+  const { setItems: setTests } = tests;
+  const plans = useCollection<Plan>([]);
+  const { setItems: setPlans } = plans;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [result, topicsResult, questionsResult, testsResult, plansResult] = await Promise.all([
+        fetchSubjects(),
+        fetchTopics(),
+        fetchQuestions(),
+        fetchTests(),
+        fetchPlans(),
+      ]);
+      if (cancelled) return;
+      if (result.ok && topicsResult.ok && questionsResult.ok && testsResult.ok && plansResult.ok) {
+        setSubjects(result.data);
+        setTopics(topicsResult.data);
+        setQuestions(questionsResult.data);
+        setTests(testsResult.data);
+        setPlans(plansResult.data);
+        setContentStatus("ready");
+      } else {
+        setContentStatus("error");
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [setSubjects, setTopics, setQuestions, setTests, setPlans, contentAttempt]);
+
+  const reloadContent = useCallback(() => {
+    setContentStatus("loading");
+    setContentAttempt((value) => value + 1);
+  }, []);
   const notifications = useCollection(notificationsData);
 
   // Takes deleted questions out of every test, so test totals stay correct
@@ -94,6 +137,8 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const value: AdminStore = {
     students,
     subjects,
+    contentStatus,
+    reloadContent,
     topics,
     questions,
     tests,

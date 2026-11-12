@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/form-controls";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/cn";
-import { nextId } from "@/lib/ids";
+import { createSubject, updateSubject } from "@/lib/subjects-api";
 import type { ActiveStatus, Subject, SubjectIconKey } from "@/types";
 
 const FORM_ID = "subject-form";
@@ -16,7 +16,15 @@ const FORM_ID = "subject-form";
 // What the pop-up is doing: "new" = adding, a Subject = editing it, null = closed
 export type SubjectModalState = Subject | "new" | null;
 
-function SubjectForm({ subject, onSaved }: { subject: Subject | null; onSaved: () => void }) {
+function SubjectForm({
+  subject,
+  onSaved,
+  onSavingChange,
+}: {
+  subject: Subject | null;
+  onSaved: () => void;
+  onSavingChange: (saving: boolean) => void;
+}) {
   const { subjects } = useAdminStore();
   const toast = useToast();
 
@@ -25,8 +33,9 @@ function SubjectForm({ subject, onSaved }: { subject: Subject | null; onSaved: (
   const [icon, setIcon] = useState<SubjectIconKey>(subject?.icon ?? "stethoscope");
   const [status, setStatus] = useState<ActiveStatus>(subject?.status ?? "active");
   const [nameError, setNameError] = useState<string>();
+  const [formError, setFormError] = useState<string>();
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = name.trim();
 
@@ -34,18 +43,24 @@ function SubjectForm({ subject, onSaved }: { subject: Subject | null; onSaved: (
     const taken = subjects.items.some((s) => s.id !== subject?.id && s.name.toLowerCase() === trimmed.toLowerCase());
     if (taken) return setNameError("A subject with this name already exists.");
 
+    setFormError(undefined);
+    onSavingChange(true);
+    const fields = { name: trimmed, description: description.trim(), icon, status };
+    const result = subject ? await updateSubject(subject.id, fields) : await createSubject(fields);
+    onSavingChange(false);
+
+    if (!result.ok) {
+      // 409 = the database says this name is taken (for example, added by another admin a moment ago)
+      if (result.status === 409) setNameError(result.message);
+      else setFormError(result.message);
+      return;
+    }
     if (subject) {
-      subjects.update(subject.id, { name: trimmed, description: description.trim(), icon, status });
-      toast({ title: "Subject updated", description: `${trimmed} was saved (demo data).` });
+      subjects.update(subject.id, result.data);
+      toast({ title: "Subject updated", description: `${result.data.name} was saved.` });
     } else {
-      subjects.add({
-        id: nextId("s", subjects.items.map((s) => s.id)),
-        name: trimmed,
-        description: description.trim(),
-        icon,
-        status,
-      });
-      toast({ title: "Subject added", description: `${trimmed} was added (demo data).` });
+      subjects.add(result.data);
+      toast({ title: "Subject added", description: `${result.data.name} was added.` });
     }
     onSaved();
   }
@@ -104,12 +119,19 @@ function SubjectForm({ subject, onSaved }: { subject: Subject | null; onSaved: (
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
       </SelectField>
+
+      {formError ? (
+        <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {formError}
+        </p>
+      ) : null}
     </form>
   );
 }
 
 export function SubjectFormModal({ state, onClose }: { state: SubjectModalState; onClose: () => void }) {
   const editing = state !== null && state !== "new" ? state : null;
+  const [saving, setSaving] = useState(false);
 
   return (
     <Modal
@@ -119,16 +141,16 @@ export function SubjectFormModal({ state, onClose }: { state: SubjectModalState;
       description={editing ? "Change the subject's details." : "Create a new subject for questions and tests."}
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" form={FORM_ID}>
+          <Button type="submit" form={FORM_ID} loading={saving}>
             {editing ? "Save changes" : "Add subject"}
           </Button>
         </>
       }
     >
-      {state !== null ? <SubjectForm key={editing?.id ?? "new"} subject={editing} onSaved={onClose} /> : null}
+      {state !== null ? <SubjectForm key={editing?.id ?? "new"} subject={editing} onSaved={onClose} onSavingChange={setSaving} /> : null}
     </Modal>
   );
 }

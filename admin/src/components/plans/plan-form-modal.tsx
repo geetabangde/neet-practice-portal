@@ -6,7 +6,7 @@ import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/form-controls";
 import { Modal } from "@/components/ui/modal";
-import { nextId } from "@/lib/ids";
+import { createPlan, updatePlan } from "@/lib/plans-api";
 import type { ActiveStatus, Plan } from "@/types";
 
 const FORM_ID = "plan-form";
@@ -19,9 +19,18 @@ interface PlanErrors {
   price?: string;
   durationMonths?: string;
   features?: string;
+  form?: string;
 }
 
-function PlanForm({ plan, onSaved }: { plan: Plan | null; onSaved: () => void }) {
+function PlanForm({
+  plan,
+  onSaved,
+  onSavingChange,
+}: {
+  plan: Plan | null;
+  onSaved: () => void;
+  onSavingChange: (saving: boolean) => void;
+}) {
   const { plans } = useAdminStore();
   const toast = useToast();
 
@@ -33,7 +42,7 @@ function PlanForm({ plan, onSaved }: { plan: Plan | null; onSaved: () => void })
   const [status, setStatus] = useState<ActiveStatus>(plan?.status ?? "active");
   const [errors, setErrors] = useState<PlanErrors>({});
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const found: PlanErrors = {};
     const featureList = features.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -56,12 +65,21 @@ function PlanForm({ plan, onSaved }: { plan: Plan | null; onSaved: () => void })
       status,
     };
 
+    onSavingChange(true);
+    const result = plan ? await updatePlan(plan.id, values) : await createPlan(values);
+    onSavingChange(false);
+
+    if (!result.ok) {
+      // 409 = the database says this plan name is taken
+      setErrors(result.status === 409 ? { name: result.message } : { form: result.message });
+      return;
+    }
     if (plan) {
-      plans.update(plan.id, values);
-      toast({ title: "Plan updated", description: `${values.name} was saved (demo data).` });
+      plans.update(plan.id, result.data);
+      toast({ title: "Plan updated", description: `${result.data.name} was saved.` });
     } else {
-      plans.add({ id: nextId("p", plans.items.map((p) => p.id)), ...values });
-      toast({ title: "Plan added", description: `${values.name} was added (demo data).` });
+      plans.add(result.data);
+      toast({ title: "Plan added", description: `${result.data.name} was added.` });
     }
     onSaved();
   }
@@ -85,12 +103,19 @@ function PlanForm({ plan, onSaved }: { plan: Plan | null; onSaved: () => void })
         <option value="active">Active (can be bought)</option>
         <option value="inactive">Inactive (hidden from students)</option>
       </SelectField>
+
+      {errors.form ? (
+        <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 sm:col-span-2">
+          {errors.form}
+        </p>
+      ) : null}
     </form>
   );
 }
 
 export function PlanFormModal({ state, onClose }: { state: PlanModalState; onClose: () => void }) {
   const editing = state !== null && state !== "new" ? state : null;
+  const [saving, setSaving] = useState(false);
 
   return (
     <Modal
@@ -101,16 +126,16 @@ export function PlanFormModal({ state, onClose }: { state: PlanModalState; onClo
       size="lg"
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" form={FORM_ID}>
+          <Button type="submit" form={FORM_ID} loading={saving}>
             {editing ? "Save changes" : "Add plan"}
           </Button>
         </>
       }
     >
-      {state !== null ? <PlanForm key={editing?.id ?? "new"} plan={editing} onSaved={onClose} /> : null}
+      {state !== null ? <PlanForm key={editing?.id ?? "new"} plan={editing} onSaved={onClose} onSavingChange={setSaving} /> : null}
     </Modal>
   );
 }

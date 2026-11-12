@@ -3,6 +3,7 @@
 import { FileQuestion, ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { deleteQuestion } from "@/lib/questions-api";
 import { PageHeader } from "@/components/common/page-header";
 import { ListCard } from "@/components/common/list-card";
 import { RowActions } from "@/components/common/row-actions";
@@ -29,7 +30,7 @@ const PAGE_SIZE = 10;
 const typeLabels = { single: "Single correct", multiple: "Multiple correct" } as const;
 
 export function QuestionsView({ initialQuery = "" }: { initialQuery?: string }) {
-  const { questions, subjects, topics, removeQuestion } = useAdminStore();
+  const { questions, subjects, topics, removeQuestion, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState(initialQuery);
@@ -39,6 +40,16 @@ export function QuestionsView({ initialQuery = "" }: { initialQuery?: string }) 
   const [type, setType] = useState("all");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [deleting, setDeleting] = useState<Question | null>(null);
+
+  async function confirmDelete(question: Question) {
+    const result = await deleteQuestion(question.id);
+    // 404 = already gone, so the list should drop it too
+    if (!result.ok && result.status !== 404) {
+      return toast({ title: "Could not delete the question", description: result.message, tone: "error" });
+    }
+    removeQuestion(question.id);
+    toast({ title: "Question deleted", description: `${question.id} was removed from the bank.` });
+  }
 
   const subjectById = indexById(subjects.items);
   const topicById = indexById(topics.items);
@@ -103,6 +114,15 @@ export function QuestionsView({ initialQuery = "" }: { initialQuery?: string }) 
           </Link>
         }
       />
+
+      {contentStatus === "error" ? (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          Could not load questions from the server.
+          <Button size="sm" variant="outline" onClick={reloadContent}>
+            Try again
+          </Button>
+        </div>
+      ) : null}
 
       <ListCard
         toolbar={
@@ -200,9 +220,7 @@ export function QuestionsView({ initialQuery = "" }: { initialQuery?: string }) 
         open={deleting !== null}
         onClose={() => setDeleting(null)}
         onConfirm={() => {
-          if (!deleting) return;
-          removeQuestion(deleting.id);
-          toast({ title: "Question deleted", description: `${deleting.id} was removed from the bank.` });
+          if (deleting) void confirmDelete(deleting);
         }}
         title="Delete this question?"
         description={

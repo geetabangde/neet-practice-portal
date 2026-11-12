@@ -2,6 +2,7 @@
 
 import { Layers, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { deleteTopic } from "@/lib/topics-api";
 import { PageHeader } from "@/components/common/page-header";
 import { ListCard } from "@/components/common/list-card";
 import { RowActions } from "@/components/common/row-actions";
@@ -28,7 +29,7 @@ type StatusFilter = "all" | "active" | "inactive";
 const PAGE_SIZE = 10;
 
 export function TopicsView() {
-  const { topics, subjects, questions, removeTopic } = useAdminStore();
+  const { topics, subjects, contentStatus, reloadContent, questions, removeTopic } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
@@ -36,6 +37,16 @@ export function TopicsView() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [modal, setModal] = useState<TopicModalState>(null);
   const [deleting, setDeleting] = useState<Topic | null>(null);
+
+  async function confirmDelete(topic: Topic) {
+    const result = await deleteTopic(topic.id);
+    // 404 = already gone, so the list should drop it too
+    if (!result.ok && result.status !== 404) {
+      return toast({ title: "Could not delete the topic", description: result.message, tone: "error" });
+    }
+    removeTopic(topic.id);
+    toast({ title: "Topic deleted", description: `${topic.name} and its questions were removed.` });
+  }
 
   const subjectById = indexById(subjects.items);
   const term = query.trim().toLowerCase();
@@ -85,6 +96,15 @@ export function TopicsView() {
           </Button>
         }
       />
+
+      {contentStatus === "error" ? (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          Could not load topics from the server.
+          <Button size="sm" variant="outline" onClick={reloadContent}>
+            Try again
+          </Button>
+        </div>
+      ) : null}
 
       <ListCard
         toolbar={
@@ -163,9 +183,7 @@ export function TopicsView() {
         open={deleting !== null}
         onClose={() => setDeleting(null)}
         onConfirm={() => {
-          if (!deleting) return;
-          removeTopic(deleting.id);
-          toast({ title: "Topic deleted", description: `${deleting.name} and its questions were removed.` });
+          if (deleting) void confirmDelete(deleting);
         }}
         title="Delete this topic?"
         description={

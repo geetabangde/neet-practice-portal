@@ -3,13 +3,14 @@
 import { CheckCircle2, ClipboardList, Pencil, Plus, Rocket, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { deleteTest, updateTest } from "@/lib/tests-api";
 import { PageHeader } from "@/components/common/page-header";
 import { ListCard } from "@/components/common/list-card";
 import { RowActions, type RowAction } from "@/components/common/row-actions";
 import { TestStatusBadge } from "@/components/common/status-badges";
 import { useAdminStore } from "@/components/providers/admin-store-provider";
 import { useToast } from "@/components/providers/toast-provider";
-import { buttonStyles } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,7 +27,7 @@ type StatusFilter = "all" | TestStatus;
 const PAGE_SIZE = 8;
 
 export function TestsView() {
-  const { tests, subjects } = useAdminStore();
+  const { tests, subjects, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
@@ -42,12 +43,24 @@ export function TestsView() {
 
   const countOf = (value: TestStatus) => tests.items.filter((t) => t.status === value).length;
 
-  function changeStatus(test: MockTest, next: TestStatus) {
-    tests.update(test.id, { status: next });
+  async function changeStatus(test: MockTest, next: TestStatus) {
+    const result = await updateTest(test.id, { status: next });
+    if (!result.ok) return toast({ title: "Could not change the status", description: result.message, tone: "error" });
+    tests.update(test.id, result.data);
     toast({
       title: next === "published" ? "Test published" : "Test marked as completed",
       description: test.title,
     });
+  }
+
+  async function confirmDelete(test: MockTest) {
+    const result = await deleteTest(test.id);
+    // 404 = already gone, so the list should drop it too
+    if (!result.ok && result.status !== 404) {
+      return toast({ title: "Could not delete the test", description: result.message, tone: "error" });
+    }
+    tests.remove(test.id);
+    toast({ title: "Test deleted", description: test.title });
   }
 
   const columns: Column<MockTest>[] = [
@@ -92,6 +105,15 @@ export function TestsView() {
           </Link>
         }
       />
+
+      {contentStatus === "error" ? (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          Could not load tests from the server.
+          <Button size="sm" variant="outline" onClick={reloadContent}>
+            Try again
+          </Button>
+        </div>
+      ) : null}
 
       <ListCard
         toolbar={
@@ -142,10 +164,10 @@ export function TestsView() {
           actions={(test) => {
             const actions: RowAction[] = [{ label: `Edit ${test.title}`, icon: Pencil, href: `/tests/${test.id}/edit` }];
             if (test.status === "draft") {
-              actions.unshift({ label: `Publish ${test.title}`, icon: Rocket, onClick: () => changeStatus(test, "published") });
+              actions.unshift({ label: `Publish ${test.title}`, icon: Rocket, onClick: () => void changeStatus(test, "published") });
             }
             if (test.status === "published") {
-              actions.unshift({ label: `Mark ${test.title} as completed`, icon: CheckCircle2, onClick: () => changeStatus(test, "completed") });
+              actions.unshift({ label: `Mark ${test.title} as completed`, icon: CheckCircle2, onClick: () => void changeStatus(test, "completed") });
             }
             actions.push({ label: `Delete ${test.title}`, icon: Trash2, onClick: () => setDeleting(test), danger: true });
             return <RowActions actions={actions} />;
@@ -157,9 +179,7 @@ export function TestsView() {
         open={deleting !== null}
         onClose={() => setDeleting(null)}
         onConfirm={() => {
-          if (!deleting) return;
-          tests.remove(deleting.id);
-          toast({ title: "Test deleted", description: deleting.title });
+          if (deleting) void confirmDelete(deleting);
         }}
         title="Delete this test?"
         description={

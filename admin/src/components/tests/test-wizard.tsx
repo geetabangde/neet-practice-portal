@@ -10,7 +10,7 @@ import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Stepper } from "@/components/ui/stepper";
-import { nextId } from "@/lib/ids";
+import { createTest, updateTest } from "@/lib/tests-api";
 import type { MockTest, TestStatus } from "@/types";
 import { StepBasics } from "./step-basics";
 import { StepQuestions } from "./step-questions";
@@ -39,6 +39,7 @@ export function TestWizard({ test }: TestWizardProps) {
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<TestFormValues>(test ? formFromTest(test) : emptyTestForm);
   const [errors, setErrors] = useState<TestFormErrors>({});
+  const [saving, setSaving] = useState<TestStatus | null>(null);
 
   const editing = test !== undefined;
   const last = step === STEPS.length - 1;
@@ -63,9 +64,8 @@ export function TestWizard({ test }: TestWizardProps) {
     if (Object.keys(found).length === 0) setStep((value) => value + 1);
   }
 
-  function save(status: TestStatus) {
-    const record: MockTest = {
-      id: test?.id ?? nextId("t", tests.items.map((t) => t.id)),
+  async function save(status: TestStatus) {
+    const fields = {
       title: values.title.trim(),
       description: values.description.trim(),
       subjectIds: values.subjectIds,
@@ -79,12 +79,20 @@ export function TestWizard({ test }: TestWizardProps) {
       status,
     };
 
-    if (test) tests.update(test.id, record);
-    else tests.add(record);
+    setSaving(status);
+    const result = test ? await updateTest(test.id, fields) : await createTest(fields);
+    setSaving(null);
+    if (!result.ok) {
+      toast({ title: "The test was not saved", description: result.message, tone: "error" });
+      return;
+    }
+
+    if (test) tests.update(test.id, result.data);
+    else tests.add(result.data);
 
     toast({
       title: status === "published" ? "Test published" : status === "draft" ? "Draft saved" : "Test saved",
-      description: `${record.title} was saved (demo data).`,
+      description: `${result.data.title} was saved.`,
     });
     router.push("/tests");
   }
@@ -122,15 +130,31 @@ export function TestWizard({ test }: TestWizardProps) {
           {last ? (
             <div className="flex flex-wrap items-center gap-2">
               {test?.status === "completed" ? (
-                <Button leftIcon={<Save className="h-4 w-4" />} onClick={() => save("completed")}>
+                <Button
+                  leftIcon={<Save className="h-4 w-4" />}
+                  loading={saving === "completed"}
+                  disabled={saving !== null}
+                  onClick={() => void save("completed")}
+                >
                   Save changes
                 </Button>
               ) : (
                 <>
-                  <Button variant="outline" leftIcon={<Save className="h-4 w-4" />} onClick={() => save("draft")}>
+                  <Button
+                    variant="outline"
+                    leftIcon={<Save className="h-4 w-4" />}
+                    loading={saving === "draft"}
+                    disabled={saving !== null}
+                    onClick={() => void save("draft")}
+                  >
                     Save as draft
                   </Button>
-                  <Button leftIcon={<Send className="h-4 w-4" />} onClick={() => save("published")}>
+                  <Button
+                    leftIcon={<Send className="h-4 w-4" />}
+                    loading={saving === "published"}
+                    disabled={saving !== null}
+                    onClick={() => void save("published")}
+                  >
                     {test?.status === "published" ? "Save and keep published" : "Publish test"}
                   </Button>
                 </>
