@@ -4,11 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/ui/Logo";
+import { useStudent } from "@/components/auth/StudentGate";
 import { dashboardNav, dashboardUser } from "@/data/dashboard";
-import { BookmarkIcon, CloseIcon, LogoutIcon, QBankIcon, TestSeriesIcon } from "./icons";
+import { BookmarkIcon, CloseIcon, CustomModuleIcon, LogoutIcon, QBankIcon, TestSeriesIcon } from "./icons";
 
 const navIcons = {
   qbank: QBankIcon,
+  custom: CustomModuleIcon,
   bookmarks: BookmarkIcon,
   tests: TestSeriesIcon,
 };
@@ -20,6 +22,7 @@ type SidebarProps = {
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { student, logout } = useStudent();
   // The nav item with the longest matching href is the active one, so
   // /dashboard/bookmarks lights up Bookmarks and not QBank
   const activeHref = dashboardNav
@@ -81,18 +84,19 @@ export default function Sidebar({ onClose }: SidebarProps) {
             className="h-10 w-10 rounded-full border border-accent object-cover"
           />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">{dashboardUser.name}</p>
-            <p className="text-[10px] text-white/80">Course : {dashboardUser.course}</p>
+            <p className="truncate text-sm font-semibold text-white">{student.name}</p>
+            <p className="text-[10px] text-white/80">Course : {student.exam}</p>
           </div>
         </div>
-        {/* No session exists yet, so for now logging out just goes back to /login */}
-        <Link
-          href="/login"
-          className="mt-4 flex items-center gap-3 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+        <button
+          suppressHydrationWarning
+          type="button"
+          onClick={logout}
+          className="mt-4 flex w-full items-center gap-3 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
         >
           <LogoutIcon className="h-5 w-5" />
           Log out
-        </Link>
+        </button>
       </div>
     </div>
   );

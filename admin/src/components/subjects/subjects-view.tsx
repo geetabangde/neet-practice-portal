@@ -1,8 +1,9 @@
 "use client";
 
-import { BookOpen, FileQuestion, Layers, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Eye, FileQuestion, Layers, LayoutList, Pencil, Plus } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
-import { deleteSubject, updateSubject } from "@/lib/subjects-api";
+import { updateSubject } from "@/lib/subjects-api";
 import { PageHeader } from "@/components/common/page-header";
 import { SubjectIcon } from "@/components/common/subject-icon";
 import { useAdminStore } from "@/components/providers/admin-store-provider";
@@ -10,12 +11,10 @@ import { useToast } from "@/components/providers/toast-provider";
 import { ActiveBadge } from "@/components/common/status-badges";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Switch } from "@/components/ui/form-controls";
 import { SearchInput } from "@/components/ui/search-input";
 import { Tabs } from "@/components/ui/tabs";
-import { plural } from "@/lib/format";
 import { subjectStats } from "@/lib/selectors";
 import type { Subject } from "@/types";
 import { SubjectFormModal, type SubjectModalState } from "./subject-form-modal";
@@ -23,13 +22,12 @@ import { SubjectFormModal, type SubjectModalState } from "./subject-form-modal";
 type StatusFilter = "all" | "active" | "inactive";
 
 export function SubjectsView() {
-  const { subjects, contentStatus, reloadContent, topics, questions, removeSubject } = useAdminStore();
+  const { subjects, modules, contentStatus, reloadContent, topics, questions } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [modal, setModal] = useState<SubjectModalState>(null);
-  const [deleting, setDeleting] = useState<Subject | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function toggleStatus(subject: Subject, active: boolean) {
@@ -41,29 +39,17 @@ export function SubjectsView() {
     toast({ title: active ? "Subject activated" : "Subject deactivated", description: subject.name });
   }
 
-  async function confirmDelete(subject: Subject) {
-    const result = await deleteSubject(subject.id);
-    // 404 = already gone, so the list should drop it too
-    if (!result.ok && result.status !== 404) {
-      return toast({ title: "Could not delete the subject", description: result.message, tone: "error" });
-    }
-    removeSubject(subject.id);
-    toast({ title: "Subject deleted", description: `${subject.name} and its content were removed.` });
-  }
-
   const term = query.trim().toLowerCase();
   const visible = subjects.items.filter((subject) => {
     if (status !== "all" && subject.status !== status) return false;
     return !term || subject.name.toLowerCase().includes(term) || subject.description.toLowerCase().includes(term);
   });
 
-  const deletingStats = deleting ? subjectStats(deleting.id, topics.items, questions.items) : null;
-
   return (
     <>
       <PageHeader
         title="Subjects"
-        description="Manage the subjects students can practise. Each subject holds topics and questions."
+        description="Manage the subjects students can practise. Use the eye button to open a subject and manage its modules and topics."
         actions={
           <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("new")}>
             Add subject
@@ -110,7 +96,7 @@ export function SubjectsView() {
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {visible.map((subject) => {
-            const stats = subjectStats(subject.id, topics.items, questions.items);
+            const stats = subjectStats(subject.id, modules.items, topics.items, questions.items);
             return (
               <li key={subject.id}>
                 <Card className="flex h-full flex-col p-5 transition-shadow hover:shadow-md">
@@ -121,7 +107,13 @@ export function SubjectsView() {
                   <h2 className="mt-4 text-base font-semibold text-slate-900">{subject.name}</h2>
                   <p className="mt-1 line-clamp-2 flex-1 text-sm text-slate-500">{subject.description || "No description."}</p>
 
-                  <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+                  <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
+                    <div>
+                      <dt className="flex items-center gap-1.5 text-xs text-slate-500">
+                        <LayoutList className="h-3.5 w-3.5" aria-hidden="true" /> Modules
+                      </dt>
+                      <dd className="mt-0.5 text-lg font-semibold text-slate-900">{stats.totalModules}</dd>
+                    </div>
                     <div>
                       <dt className="flex items-center gap-1.5 text-xs text-slate-500">
                         <Layers className="h-3.5 w-3.5" aria-hidden="true" /> Topics
@@ -147,11 +139,16 @@ export function SubjectsView() {
                       Active
                     </label>
                     <div className="flex items-center gap-0.5">
+                      <Link
+                        href={`/subjects/${subject.id}`}
+                        aria-label={`View modules and topics of ${subject.name}`}
+                        title="View modules and topics"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      >
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                      </Link>
                       <IconButton label={`Edit ${subject.name}`} onClick={() => setModal(subject)}>
                         <Pencil className="h-4 w-4" />
-                      </IconButton>
-                      <IconButton label={`Delete ${subject.name}`} onClick={() => setDeleting(subject)} className="hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
                       </IconButton>
                     </div>
                   </div>
@@ -163,25 +160,6 @@ export function SubjectsView() {
       )}
 
       <SubjectFormModal state={modal} onClose={() => setModal(null)} />
-
-      <ConfirmDialog
-        open={deleting !== null}
-        onClose={() => setDeleting(null)}
-        onConfirm={() => {
-          if (deleting) void confirmDelete(deleting);
-        }}
-        title="Delete this subject?"
-        description={
-          deleting && deletingStats ? (
-            <>
-              <strong className="text-slate-900">{deleting.name}</strong> will be deleted together with{" "}
-              <strong>{plural(deletingStats.totalTopics, "topic")}</strong> and{" "}
-              <strong>{plural(deletingStats.totalQuestions, "question")}</strong>. This cannot be undone.
-            </>
-          ) : null
-        }
-        confirmLabel="Delete subject"
-      />
     </>
   );
 }

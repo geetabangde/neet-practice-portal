@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
 import {
+  TopicModuleError,
   createTopic,
   deleteTopic,
   getTopic,
   isDuplicateTopic,
-  isMissingSubject,
   listTopics,
   updateTopic,
   type TopicInput,
@@ -13,23 +13,23 @@ import {
 
 type Validation = { ok: true; value: Partial<TopicInput> } | { ok: false; message: string };
 
-// "12" -> 12; anything else -> null
+// "12" or 12 -> 12; anything else -> null
 function toId(raw: unknown): number | null {
   const id = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : typeof raw === "number" ? raw : NaN;
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-// With partial = false every field that has no default is required (create);
-// with partial = true only the fields that were sent are checked (update).
+// With partial = false the module is required (create); with partial = true only the fields that
+// were sent are checked (update).
 function validate(body: unknown, partial: boolean): Validation {
   if (typeof body !== "object" || body === null) return { ok: false, message: "Send the topic details as JSON" };
   const data = body as Record<string, unknown>;
   const value: Partial<TopicInput> = {};
 
-  if (data.subjectId !== undefined || !partial) {
-    const subjectId = toId(data.subjectId);
-    if (subjectId === null) return { ok: false, message: "Choose the subject this topic belongs to" };
-    value.subjectId = subjectId;
+  if (data.moduleId !== undefined || !partial) {
+    const moduleId = toId(data.moduleId);
+    if (moduleId === null) return { ok: false, message: "Choose the module this topic belongs to" };
+    value.moduleId = moduleId;
   }
   if (data.name !== undefined || !partial) {
     if (typeof data.name !== "string" || data.name.trim() === "") return { ok: false, message: "Enter the topic name" };
@@ -46,21 +46,35 @@ function validate(body: unknown, partial: boolean): Validation {
 }
 
 const NOT_FOUND = { success: false, message: "Topic not found" };
-const DUPLICATE = { success: false, message: "This subject already has a topic with this name" };
-const NO_SUBJECT = { success: false, message: "The chosen subject does not exist" };
+const DUPLICATE = { success: false, message: "This module already has a topic with this name" };
 const FAILED = { success: false, message: "Something went wrong" };
 
-// GET /api/admin/topics            -> all topics
-// GET /api/admin/topics?subjectId=3 -> topics of one subject
+// Answers a failed save when the problem was the chosen module. Returns true when it did.
+function moduleProblem(error: unknown, res: Response): boolean {
+  if (!(error instanceof TopicModuleError)) return false;
+  const message =
+    error.reason === "missing" ? "The chosen module does not exist" : "A topic can only be moved to a module of the same subject";
+  res.status(400).json({ success: false, message });
+  return true;
+}
+
+// GET /api/admin/topics                  -> all topics
+// GET /api/admin/topics?subjectId=3      -> topics of one subject
+// GET /api/admin/topics?moduleId=5       -> topics of one module
 export async function listTopicsHandler(req: Request, res: Response): Promise<void> {
-  const rawSubject = req.query.subjectId;
-  const subjectId = rawSubject === undefined ? undefined : toId(rawSubject);
-  if (subjectId === null) {
-    res.status(400).json({ success: false, message: "subjectId must be a number" });
-    return;
+  const filter: { subjectId?: number; moduleId?: number } = {};
+  for (const key of ["subjectId", "moduleId"] as const) {
+    const raw = req.query[key];
+    if (raw === undefined) continue;
+    const id = toId(raw);
+    if (id === null) {
+      res.status(400).json({ success: false, message: `${key} must be a number` });
+      return;
+    }
+    filter[key] = id;
   }
   try {
-    res.json({ success: true, message: "Topics", data: { topics: await listTopics(subjectId) } });
+    res.json({ success: true, message: "Topics", data: { topics: await listTopics(filter) } });
   } catch (error) {
     console.error("List topics failed:", error);
     res.status(500).json(FAILED);
@@ -93,8 +107,8 @@ export async function createTopicHandler(req: Request, res: Response): Promise<v
     const topic = await createTopic(checked.value as TopicInput);
     res.status(201).json({ success: true, message: "Topic created", data: { topic } });
   } catch (error) {
+    if (moduleProblem(error, res)) return;
     if (isDuplicateTopic(error)) res.status(409).json(DUPLICATE);
-    else if (isMissingSubject(error)) res.status(400).json(NO_SUBJECT);
     else {
       console.error("Create topic failed:", error);
       res.status(500).json(FAILED);
@@ -118,8 +132,8 @@ export async function updateTopicHandler(req: Request, res: Response): Promise<v
     if (!topic) res.status(404).json(NOT_FOUND);
     else res.json({ success: true, message: "Topic updated", data: { topic } });
   } catch (error) {
+    if (moduleProblem(error, res)) return;
     if (isDuplicateTopic(error)) res.status(409).json(DUPLICATE);
-    else if (isMissingSubject(error)) res.status(400).json(NO_SUBJECT);
     else {
       console.error("Update topic failed:", error);
       res.status(500).json(FAILED);

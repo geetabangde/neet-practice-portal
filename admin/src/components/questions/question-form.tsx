@@ -21,6 +21,7 @@ const TEXT_LIMIT = 1000;
 
 interface FormErrors {
   subjectId?: string;
+  moduleId?: string;
   topicId?: string;
   text?: string;
   options: Partial<Record<OptionKey, string>>;
@@ -30,6 +31,8 @@ interface FormErrors {
 
 interface FormValues {
   subjectId: string;
+  // Only used to pick the topic: a question is saved with its topic, and the topic knows its module
+  moduleId: string;
   topicId: string;
   text: string;
   difficulty: Difficulty;
@@ -42,6 +45,7 @@ interface FormValues {
 
 const emptyValues: FormValues = {
   subjectId: "",
+  moduleId: "",
   topicId: "",
   text: "",
   difficulty: "medium",
@@ -60,6 +64,7 @@ function validate(values: FormValues, mode: QuestionStatus): FormErrors {
   if (mode === "draft") return errors;
 
   if (!values.subjectId) errors.subjectId = "Choose a subject.";
+  if (!values.moduleId) errors.moduleId = "Choose a module.";
   if (!values.topicId) errors.topicId = "Choose a topic.";
   for (const key of OPTION_KEYS) {
     if (!values.options[key].trim()) errors.options[key] = `Write option ${key}.`;
@@ -81,12 +86,13 @@ interface QuestionFormProps {
 export function QuestionForm({ question }: QuestionFormProps) {
   const router = useRouter();
   const toast = useToast();
-  const { questions, subjects, topics } = useAdminStore();
+  const { questions, subjects, modules, topics } = useAdminStore();
 
   const [values, setValues] = useState<FormValues>(
     question
       ? {
           subjectId: question.subjectId,
+          moduleId: topics.items.find((topic) => topic.id === question.topicId)?.moduleId ?? "",
           topicId: question.topicId,
           text: question.text,
           difficulty: question.difficulty,
@@ -105,7 +111,8 @@ export function QuestionForm({ question }: QuestionFormProps) {
   const [errors, setErrors] = useState<FormErrors>({ options: {} });
   const [saving, setSaving] = useState<QuestionStatus | null>(null);
 
-  const topicOptions = topics.items.filter((topic) => topic.subjectId === values.subjectId);
+  const moduleOptions = modules.items.filter((module) => module.subjectId === values.subjectId);
+  const topicOptions = topics.items.filter((topic) => topic.moduleId === values.moduleId);
 
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -300,8 +307,8 @@ export function QuestionForm({ question }: QuestionFormProps) {
                   required
                   value={values.subjectId}
                   onChange={(e) => {
-                    // A topic belongs to one subject, so changing the subject clears the topic
-                    setValues((prev) => ({ ...prev, subjectId: e.target.value, topicId: "" }));
+                    // A module belongs to one subject and a topic to one module, so changing the subject clears both
+                    setValues((prev) => ({ ...prev, subjectId: e.target.value, moduleId: "", topicId: "" }));
                     setErrors((prev) => ({ ...prev, subjectId: undefined }));
                   }}
                   error={errors.subjectId}
@@ -314,16 +321,36 @@ export function QuestionForm({ question }: QuestionFormProps) {
                   ))}
                 </SelectField>
                 <SelectField
+                  label="Module"
+                  required
+                  value={values.moduleId}
+                  disabled={!values.subjectId}
+                  onChange={(e) => {
+                    // A topic belongs to one module, so changing the module clears the topic
+                    setValues((prev) => ({ ...prev, moduleId: e.target.value, topicId: "" }));
+                    setErrors((prev) => ({ ...prev, moduleId: undefined }));
+                  }}
+                  error={errors.moduleId}
+                  hint={values.subjectId ? undefined : "Choose a subject first."}
+                >
+                  <option value="">Choose a module</option>
+                  {moduleOptions.map((module) => (
+                    <option key={module.id} value={module.id}>
+                      {module.name}
+                    </option>
+                  ))}
+                </SelectField>
+                <SelectField
                   label="Topic"
                   required
                   value={values.topicId}
-                  disabled={!values.subjectId}
+                  disabled={!values.moduleId}
                   onChange={(e) => {
                     set("topicId", e.target.value);
                     setErrors((prev) => ({ ...prev, topicId: undefined }));
                   }}
                   error={errors.topicId}
-                  hint={values.subjectId ? undefined : "Choose a subject first."}
+                  hint={values.moduleId ? undefined : "Choose a module first."}
                 >
                   <option value="">Choose a topic</option>
                   {topicOptions.map((topic) => (

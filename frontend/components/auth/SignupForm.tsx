@@ -8,15 +8,18 @@ import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { examOptions } from "@/data/landing";
 import { OTP_LENGTH } from "@/lib/schemas/fields";
 import { getSignupSchema, type SignupFormValues } from "@/lib/schemas/signup";
+import { requestSignupOtp, saveToken, verifySignup } from "@/lib/studentAuth";
 import ControlledField from "./ControlledField";
-import { DEMO_NOTE } from "./demo";
+import NoticeBox from "./NoticeBox";
 import { outlineButtonClass, primaryButtonClass } from "./styles";
+import { useOtpNotice } from "./useOtpNotice";
 
 export default function SignupForm() {
   const router = useRouter();
   // false = details screen, true = OTP screen
   const [otpStep, setOtpStep] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const { notice, seconds, otpSent, failed, clear } = useOtpNotice();
 
   const {
     control,
@@ -32,29 +35,55 @@ export default function SignupForm() {
 
   function backToDetails() {
     setOtpStep(false);
-    setNotice(null);
+    clear();
     // Clear errors and the submitted state, keep what the user typed (except the OTP)
     reset({ ...getValues(), otp: "" });
   }
 
-  // Runs only when the active schema passes. With a backend, the values would
-  // be sent from here, and the server must validate them again.
+  // Runs only when the active schema passes. The server checks everything again.
   // Never log the values: they contain personal details and an OTP.
-  const onValid: SubmitHandler<SignupFormValues> = () => {
+  const onValid: SubmitHandler<SignupFormValues> = async (values) => {
+    clear();
+    const details = {
+      name: values.name.trim(),
+      mobile: values.mobile.trim(),
+      email: values.email.trim(),
+      exam: values.exam,
+    };
+
     if (!otpStep) {
+      const result = await requestSignupOtp(details);
+      if (!result.ok) return failed(result);
       setOtpStep(true);
-      setNotice(`No OTP was sent. ${DEMO_NOTE} Enter any ${OTP_LENGTH} digits to continue.`);
+      otpSent(result.message, result.data);
       return;
     }
-    // Demo: no account is created. With a backend, create it and check the OTP on the server first.
+
+    const result = await verifySignup(details, values.otp.trim());
+    if (!result.ok) return failed(result);
+    saveToken(result.data.token);
     router.push("/dashboard");
   };
+
+  async function resendOtp() {
+    const values = getValues();
+    setResending(true);
+    const result = await requestSignupOtp({
+      name: values.name.trim(),
+      mobile: values.mobile.trim(),
+      email: values.email.trim(),
+      exam: values.exam,
+    });
+    setResending(false);
+    if (result.ok) otpSent(result.message, result.data);
+    else failed(result);
+  }
 
   return (
     <>
       <form
         noValidate
-        onSubmit={handleSubmit(onValid, () => setNotice(null))}
+        onSubmit={handleSubmit(onValid, clear)}
         className="space-y-4"
       >
         {otpStep ? (
@@ -79,16 +108,27 @@ export default function SignupForm() {
               disabled={isSubmitting}
               className={primaryButtonClass}
             >
-              Verify OTP
+              {isSubmitting ? "Please wait..." : "Verify OTP"}
             </button>
-            <button
-              suppressHydrationWarning
-              type="button"
-              onClick={backToDetails}
-              className={outlineButtonClass}
-            >
-              Change details
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                suppressHydrationWarning
+                type="button"
+                onClick={resendOtp}
+                disabled={resending || isSubmitting || seconds > 0}
+                className={`${outlineButtonClass} disabled:cursor-not-allowed disabled:opacity-60`}
+              >
+                {seconds > 0 ? `Resend OTP (${seconds}s)` : "Resend OTP"}
+              </button>
+              <button
+                suppressHydrationWarning
+                type="button"
+                onClick={backToDetails}
+                className={outlineButtonClass}
+              >
+                Change details
+              </button>
+            </div>
           </>
         ) : (
           <>
@@ -190,17 +230,13 @@ export default function SignupForm() {
               disabled={isSubmitting}
               className={primaryButtonClass}
             >
-              Sign up
+              {isSubmitting ? "Please wait..." : "Sign up"}
             </button>
           </>
         )}
       </form>
 
-      <div role="status" aria-live="polite">
-        {notice ? (
-          <p className="mt-4 rounded-lg bg-accent-soft p-3 text-xs text-brand-950">{notice}</p>
-        ) : null}
-      </div>
+      <NoticeBox notice={notice} />
 
       <p className="mt-6 text-center text-sm text-slate-600">
         Already have an account?{" "}

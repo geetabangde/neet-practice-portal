@@ -7,6 +7,7 @@ import { useAdminStore } from "@/components/providers/admin-store-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { studentsData } from "@/data/students";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Payment } from "@/types";
 
@@ -26,10 +27,12 @@ interface PaymentDetailsModalProps {
 }
 
 export function PaymentDetailsModal({ payment, onClose }: PaymentDetailsModalProps) {
-  const { students, plans } = useAdminStore();
+  const { plans } = useAdminStore();
   const toast = useToast();
 
-  const student = payment ? students.items.find((s) => s.id === payment.studentId) : undefined;
+  // Results and payments are still sample data about sample students, so they find their people in the sample list,
+  // not in the real students.
+  const student = payment ? studentsData.find((s) => s.id === payment.studentId) : undefined;
   const plan = payment ? plans.items.find((p) => p.id === payment.planId) : undefined;
 
   return (

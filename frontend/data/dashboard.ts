@@ -17,6 +17,7 @@ import type {
 // nothing here belongs to a real user.
 export const dashboardNav: DashboardNavItem[] = [
   { label: "QBank", href: "/dashboard", icon: "qbank" },
+  { label: "Custom Module", href: "/dashboard/custom-module", icon: "custom" },
   { label: "Bookmarks", href: "/dashboard/bookmarks", icon: "bookmarks" },
   { label: "Test Series", href: "/dashboard/test-series", icon: "tests" },
 ];

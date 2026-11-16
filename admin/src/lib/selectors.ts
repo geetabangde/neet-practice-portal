@@ -1,4 +1,4 @@
-import type { MockTest, Question, TestResult, Topic } from "@/types";
+import type { MockTest, Module, Question, TestResult, Topic } from "@/types";
 
 // Small calculations that are used on more than one page
 
@@ -6,8 +6,9 @@ export function indexById<T extends { id: string }>(items: T[]): Map<string, T> 
   return new Map(items.map((item) => [item.id, item]));
 }
 
-export function subjectStats(subjectId: string, topics: Topic[], questions: Question[]) {
+export function subjectStats(subjectId: string, modules: Module[], topics: Topic[], questions: Question[]) {
   return {
+    totalModules: modules.filter((m) => m.subjectId === subjectId).length,
     totalTopics: topics.filter((t) => t.subjectId === subjectId).length,
     totalQuestions: questions.filter((q) => q.subjectId === subjectId).length,
   };

@@ -21,7 +21,12 @@ export interface SafeAdmin {
   role: string;
 }
 
-// What we store inside the JWT. Only the id: role and status are re-read from MySQL on every request.
-export interface AdminTokenPayload {
+// Who a token belongs to. Admin and student tokens look alike, so every token says which kind it is,
+// and each kind of route accepts only its own kind.
+export type TokenRole = "admin" | "student";
+
+// What we store inside the JWT. Only the id and the kind: status is re-read from MySQL on every request.
+export interface TokenPayload {
   sub: string;
+  role: TokenRole;
 }

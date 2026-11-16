@@ -3,6 +3,7 @@ import {
   OPTION_KEYS,
   createQuestion,
   deleteQuestion,
+  findQuestionProblem,
   getQuestion,
   isMissingParent,
   listQuestions,
@@ -30,7 +31,7 @@ function toId(raw: unknown): number | null {
 }
 
 // Checks the type and size of every field that was sent. It does not check the "published needs
-// everything" rules: those apply to the finished question, see checkComplete.
+// everything" rules: those apply to the finished question, see findQuestionProblem.
 function parseFields(body: unknown): Parsed {
   if (typeof body !== "object" || body === null) return bad("Send the question details as JSON");
   const data = body as Record<string, unknown>;
@@ -108,28 +109,13 @@ const DEFAULTS: Omit<QuestionInput, "text"> = {
   status: "draft",
 };
 
-// The rules for the finished question. A draft only needs text; a published question must be complete.
-function checkComplete(q: QuestionInput): string | null {
-  if (q.type === "single" && q.correct.length > 1) return "A single correct question can have only one correct option";
-  if (q.topicId !== null && q.subjectId === null) return "Choose the subject of this topic";
-  if (q.status === "draft") return null;
-
-  if (q.subjectId === null) return "Choose a subject";
-  if (q.topicId === null) return "Choose a topic";
-  for (const key of OPTION_KEYS) if (q.options[key] === "") return `Write option ${key}`;
-  if (q.correct.length === 0) return "Mark the correct answer";
-  if (q.type === "multiple" && q.correct.length < 2) return "A multiple correct question needs at least two correct options";
-  if (q.explanation === "") return "Write the explanation students will see";
-  return null;
-}
-
 const NOT_FOUND = { success: false, message: "Question not found" };
 const NO_PARENT = { success: false, message: "The chosen subject or topic does not exist" };
 const FAILED = { success: false, message: "Something went wrong" };
 
 // Runs every check on a finished question. Returns the error message, or null when it is fine to save.
 async function problemWith(q: QuestionInput): Promise<string | null> {
-  const incomplete = checkComplete(q);
+  const incomplete = findQuestionProblem(q);
   if (incomplete) return incomplete;
   if (q.subjectId !== null && q.topicId !== null && !(await topicBelongsToSubject(q.topicId, q.subjectId))) {
     return "The chosen topic does not belong to the chosen subject";

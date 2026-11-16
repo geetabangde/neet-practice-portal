@@ -7,19 +7,24 @@ import { useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { OTP_LENGTH } from "@/lib/schemas/fields";
 import { getLoginSchema, type LoginFormValues } from "@/lib/schemas/login";
+import { requestLoginOtp, saveToken, verifyLogin } from "@/lib/studentAuth";
 import ControlledField from "./ControlledField";
-import { DEMO_NOTE } from "./demo";
-import { primaryButtonClass } from "./styles";
+import NoticeBox from "./NoticeBox";
+import { outlineButtonClass, primaryButtonClass } from "./styles";
+import { useOtpNotice } from "./useOtpNotice";
 
 export default function LoginForm() {
   const router = useRouter();
   // false = asking for the mobile number, true = OTP box is showing
   const [otpStep, setOtpStep] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const { notice, seconds, otpSent, failed, clear } = useOtpNotice();
 
   const {
     control,
     handleSubmit,
+    getValues,
+    reset,
     formState: { isSubmitting },
   } = useForm<LoginFormValues>({
     // React Hook Form reads the latest resolver on every render, so the rules
@@ -28,26 +33,43 @@ export default function LoginForm() {
     defaultValues: { mobile: "", otp: "" },
   });
 
-  // Runs only when the active schema passes. With a backend, the values would
-  // be sent from here, and the server must validate them again.
+  // Runs only when the active schema passes. The server checks everything again.
   // Never log the values: they can contain an OTP.
-  const onValid: SubmitHandler<LoginFormValues> = () => {
+  const onValid: SubmitHandler<LoginFormValues> = async (values) => {
+    clear();
+
     if (!otpStep) {
+      const result = await requestLoginOtp(values.mobile.trim());
+      if (!result.ok) return failed(result);
       setOtpStep(true);
-      setNotice(`No OTP was sent. ${DEMO_NOTE} Enter any ${OTP_LENGTH} digits to continue.`);
+      otpSent(result.message, result.data);
       return;
     }
-    // Demo: nothing is verified. With a backend, check the OTP on the server first.
+
+    const result = await verifyLogin(values.mobile.trim(), values.otp.trim());
+    if (!result.ok) return failed(result);
+    saveToken(result.data.token);
     router.push("/dashboard");
   };
 
+  async function resendOtp() {
+    setResending(true);
+    const result = await requestLoginOtp(getValues("mobile").trim());
+    setResending(false);
+    if (result.ok) otpSent(result.message, result.data);
+    else failed(result);
+  }
+
+  function changeNumber() {
+    setOtpStep(false);
+    clear();
+    // Keep the number, clear the OTP and any error messages
+    reset({ mobile: getValues("mobile"), otp: "" });
+  }
+
   return (
     <>
-      <form
-        noValidate
-        onSubmit={handleSubmit(onValid, () => setNotice(null))}
-        className="space-y-4"
-      >
+      <form noValidate onSubmit={handleSubmit(onValid, clear)} className="space-y-4">
         <ControlledField
           control={control}
           name="mobile"
@@ -78,15 +100,28 @@ export default function LoginForm() {
           disabled={isSubmitting}
           className={primaryButtonClass}
         >
-          {otpStep ? "Verify OTP" : "Get OTP"}
+          {isSubmitting ? "Please wait..." : otpStep ? "Verify OTP" : "Get OTP"}
         </button>
+
+        {otpStep ? (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              suppressHydrationWarning
+              type="button"
+              onClick={resendOtp}
+              disabled={resending || isSubmitting || seconds > 0}
+              className={`${outlineButtonClass} disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              {seconds > 0 ? `Resend OTP (${seconds}s)` : "Resend OTP"}
+            </button>
+            <button suppressHydrationWarning type="button" onClick={changeNumber} className={outlineButtonClass}>
+              Change number
+            </button>
+          </div>
+        ) : null}
       </form>
 
-      <div role="status" aria-live="polite">
-        {notice ? (
-          <p className="mt-4 rounded-lg bg-accent-soft p-3 text-xs text-brand-950">{notice}</p>
-        ) : null}
-      </div>
+      <NoticeBox notice={notice} />
 
       <p className="mt-6 text-center text-sm text-slate-600">
         New user?{" "}

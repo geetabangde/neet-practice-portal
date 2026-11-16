@@ -12,11 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { studentsData } from "@/data/students";
 import { formatDate } from "@/lib/format";
 import { indexById, resultAccuracy, scoreTone } from "@/lib/selectors";
 
 export function ResultDetail({ id }: { id: string }) {
-  const { results, students, tests, subjects } = useAdminStore();
+  const { results, tests, subjects } = useAdminStore();
   const toast = useToast();
 
   const result = results.find((r) => r.id === id);
@@ -38,7 +39,9 @@ export function ResultDetail({ id }: { id: string }) {
     );
   }
 
-  const student = students.items.find((s) => s.id === result.studentId);
+  // Results and payments are still sample data about sample students, so they find their people in the sample list,
+  // not in the real students.
+  const student = studentsData.find((s) => s.id === result.studentId);
   const test = tests.items.find((t) => t.id === result.testId);
   const subjectById = indexById(subjects.items);
   const accuracy = resultAccuracy(result);

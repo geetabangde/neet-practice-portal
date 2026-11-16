@@ -11,12 +11,14 @@ export interface Student {
   id: string;
   name: string;
   email: string;
+  // The mobile number, shown as "+91 9876543210"
   phone: string;
-  city: string;
-  college: string;
+  // The exam the student prepares for: "NEET PG" or "FMGE"
+  exam: string;
   // Dates are YYYY-MM-DD
   registeredAt: string;
-  lastActiveAt: string;
+  // The day of the last login. null = has not logged in since signing up.
+  lastActiveAt: string | null;
   // null = no paid plan yet
   planId: string | null;
   planExpiresAt: string | null;
@@ -51,9 +53,19 @@ export interface Subject {
   status: ActiveStatus;
 }
 
-export interface Topic {
+// A module is a part of a subject. Topics live inside modules: subject > module > topic.
+export interface Module {
   id: string;
   subjectId: string;
+  name: string;
+  status: ActiveStatus;
+}
+
+export interface Topic {
+  id: string;
+  // The subject of the module the topic is in
+  subjectId: string;
+  moduleId: string;
   name: string;
   status: ActiveStatus;
 }

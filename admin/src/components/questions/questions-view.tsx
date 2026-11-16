@@ -1,6 +1,6 @@
 "use client";
 
-import { FileQuestion, ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileQuestion, ImageIcon, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { deleteQuestion } from "@/lib/questions-api";
@@ -108,10 +108,16 @@ export function QuestionsView({ initialQuery = "" }: { initialQuery?: string }) 
         title="Question bank"
         description="Every MCQ students can practise. Filter by subject, topic, difficulty or type."
         actions={
-          <Link href="/questions/new" className={buttonStyles()}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Add question
-          </Link>
+          <>
+            <Link href="/questions/import" className={buttonStyles({ variant: "outline" })}>
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              Import from file
+            </Link>
+            <Link href="/questions/new" className={buttonStyles()}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add question
+            </Link>
+          </>
         }
       />
 

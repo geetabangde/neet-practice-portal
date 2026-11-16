@@ -1,7 +1,22 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { pool } from "../config/db";
-import type { AdminRow, AdminTokenPayload, SafeAdmin } from "../types/auth.types";
+import type { AdminRow, SafeAdmin, TokenPayload, TokenRole } from "../types/auth.types";
+
+export const CREATE_ADMINS_TABLE = `
+  CREATE TABLE IF NOT EXISTS admins (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name       VARCHAR(100) NOT NULL,
+    email      VARCHAR(190) NOT NULL,
+    password   VARCHAR(255) NOT NULL,
+    role       VARCHAR(30)  NOT NULL DEFAULT 'admin',
+    status     ENUM('active','inactive') NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_admins_email (email)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
 
 export const ADMIN_ROLES = ["admin"] as const;
 
@@ -52,22 +67,29 @@ export function toSafeAdmin(admin: AdminRow): SafeAdmin {
   return { id: admin.id, name: admin.name, email: admin.email, role: admin.role };
 }
 
-export function signAdminToken(admin: AdminRow): string {
-  const payload: AdminTokenPayload = { sub: String(admin.id) };
-  return jwt.sign(payload, jwtSecret(), {
-    algorithm: "HS256",
-    expiresIn: (process.env.JWT_EXPIRES_IN ?? "1d") as jwt.SignOptions["expiresIn"],
-  });
+// Signs a token for one person. "role" says whether it is an admin or a student token.
+export function signToken(id: number, role: TokenRole, expiresIn: string): string {
+  const payload: TokenPayload = { sub: String(id), role };
+  return jwt.sign(payload, jwtSecret(), { algorithm: "HS256", expiresIn: expiresIn as jwt.SignOptions["expiresIn"] });
 }
 
-// Returns the admin id when the token is genuine and not expired, otherwise null
-export function verifyAdminToken(token: string): number | null {
+// Returns the id when the token is genuine, not expired and of the wanted kind, otherwise null.
+// A student token can never pass as an admin token (or the other way round), even if the ids match.
+export function verifyToken(token: string, role: TokenRole): number | null {
   try {
     const decoded = jwt.verify(token, jwtSecret(), { algorithms: ["HS256"] });
-    if (typeof decoded === "string" || typeof decoded.sub !== "string") return null;
+    if (typeof decoded === "string" || typeof decoded.sub !== "string" || decoded.role !== role) return null;
     const id = Number(decoded.sub);
     return Number.isInteger(id) && id > 0 ? id : null;
   } catch {
     return null;
   }
+}
+
+export function signAdminToken(admin: AdminRow): string {
+  return signToken(admin.id, "admin", process.env.JWT_EXPIRES_IN ?? "1d");
+}
+
+export function verifyAdminToken(token: string): number | null {
+  return verifyToken(token, "admin");
 }

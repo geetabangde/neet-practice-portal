@@ -17,6 +17,7 @@ import { Select } from "@/components/ui/form-controls";
 import { Pagination } from "@/components/ui/pagination";
 import { ProgressBar } from "@/components/ui/progress";
 import { SearchInput } from "@/components/ui/search-input";
+import { studentsData } from "@/data/students";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatDate } from "@/lib/format";
 import { indexById, resultAccuracy, scoreTone } from "@/lib/selectors";
@@ -27,7 +28,7 @@ const PAGE_SIZE = 10;
 type SortKey = "newest" | "best" | "lowest";
 
 export function ResultsView() {
-  const { results, students, tests } = useAdminStore();
+  const { results, tests } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
@@ -35,7 +36,9 @@ export function ResultsView() {
   const [band, setBand] = useState("all");
   const [sort, setSort] = useState<SortKey>("newest");
 
-  const studentById = indexById(students.items);
+  // Results and payments are still sample data about sample students, so they find their people in the sample list,
+  // not in the real students.
+  const studentById = indexById(studentsData);
   const testById = indexById(tests.items);
   const term = query.trim().toLowerCase();
 

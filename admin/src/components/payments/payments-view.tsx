@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Select } from "@/components/ui/form-controls";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { studentsData } from "@/data/students";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatCompact, formatCurrency, formatDate } from "@/lib/format";
 import { indexById } from "@/lib/selectors";
@@ -25,7 +26,7 @@ import { PaymentDetailsModal } from "./payment-details-modal";
 const PAGE_SIZE = 10;
 
 export function PaymentsView() {
-  const { payments, students, plans } = useAdminStore();
+  const { payments, plans } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
@@ -34,7 +35,9 @@ export function PaymentsView() {
   const [planFilter, setPlanFilter] = useState("all");
   const [viewing, setViewing] = useState<Payment | null>(null);
 
-  const studentById = indexById(students.items);
+  // Results and payments are still sample data about sample students, so they find their people in the sample list,
+  // not in the real students.
+  const studentById = indexById(studentsData);
   const planById = indexById(plans.items);
   const term = query.trim().toLowerCase();
 

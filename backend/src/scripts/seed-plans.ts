@@ -2,51 +2,8 @@
 // Safe to run again: a plan whose name already exists is skipped. Edit the prices in the admin panel afterwards.
 import "dotenv/config";
 import { pool } from "../config/db";
-import { CREATE_PLAN_TABLES, createPlan, isDuplicatePlan, type PlanInput } from "../services/plan.service";
-
-const STARTER_PLANS: PlanInput[] = [
-  {
-    name: "Free Trial",
-    price: 0,
-    durationMonths: 1,
-    status: "active",
-    features: ["Sample modules in every subject", "Answers with explanations", "Limited custom modules"],
-  },
-  {
-    name: "Plan A",
-    price: 9999,
-    durationMonths: 9,
-    status: "active",
-    features: ["Full Test Series", "Grand Tests with rank", "Score and rank report", "Performance analytics"],
-  },
-  {
-    name: "Plan B",
-    price: 14999,
-    durationMonths: 12,
-    status: "active",
-    features: ["QBank with 18,500+ MCQs", "Full Test Series", "Custom Module", "Bookmarks and Magic Module"],
-  },
-  {
-    name: "Plan C",
-    price: 28999,
-    durationMonths: 12,
-    status: "active",
-    features: [
-      "810+ hours of video classes",
-      "QBank with 18,500+ MCQs",
-      "Test Series with 390+ tests",
-      "Updated Schema",
-      "Priority doubt support",
-    ],
-  },
-  {
-    name: "Legacy Plan",
-    price: 7999,
-    durationMonths: 6,
-    status: "inactive",
-    features: ["QBank access", "Basic Test Series"],
-  },
-];
+import { CREATE_PLAN_TABLES, createPlan, isDuplicatePlan } from "../services/plan.service";
+import { STARTER_PLANS } from "./starter-data";
 
 async function main(): Promise<void> {
   for (const statement of CREATE_PLAN_TABLES) await pool.query(statement);

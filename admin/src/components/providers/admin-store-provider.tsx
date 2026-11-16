@@ -4,16 +4,18 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { notificationsData } from "@/data/notifications";
 import { paymentsData } from "@/data/payments";
 import { resultsData } from "@/data/results";
-import { studentsData } from "@/data/students";
 import { useCollection, type Collection } from "@/hooks/use-collection";
+import { fetchModules } from "@/lib/modules-api";
 import { fetchPlans } from "@/lib/plans-api";
 import { fetchQuestions } from "@/lib/questions-api";
+import { fetchStudents } from "@/lib/students-api";
 import { fetchSubjects } from "@/lib/subjects-api";
 import { fetchTests } from "@/lib/tests-api";
 import { fetchTopics } from "@/lib/topics-api";
 import type {
   AdminNotification,
   MockTest,
+  Module,
   Payment,
   Plan,
   Question,
@@ -31,6 +33,7 @@ interface AdminStore {
   students: Collection<Student>;
   // Subjects, topics, questions, tests and plans live in the database. They load when the admin opens the panel.
   subjects: Collection<Subject>;
+  modules: Collection<Module>;
   contentStatus: "loading" | "ready" | "error";
   reloadContent: () => void;
   topics: Collection<Topic>;
@@ -43,6 +46,7 @@ interface AdminStore {
   payments: Payment[];
   // Deleting also removes everything that belongs to the item
   removeSubject: (id: string) => void;
+  removeModule: (id: string) => void;
   removeTopic: (id: string) => void;
   removeQuestion: (id: string) => void;
 }
@@ -50,11 +54,14 @@ interface AdminStore {
 const StoreContext = createContext<AdminStore | null>(null);
 
 export function AdminStoreProvider({ children }: { children: ReactNode }) {
-  const students = useCollection(studentsData);
+  const students = useCollection<Student>([]);
+  const { setItems: setStudents } = students;
   const subjects = useCollection<Subject>([]);
   const [contentStatus, setContentStatus] = useState<"loading" | "ready" | "error">("loading");
   const [contentAttempt, setContentAttempt] = useState(0);
   const { setItems: setSubjects } = subjects;
+  const modules = useCollection<Module>([]);
+  const { setItems: setModules } = modules;
   const topics = useCollection<Topic>([]);
   const { setItems: setTopics } = topics;
   const questions = useCollection<Question>([]);
@@ -67,20 +74,24 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [result, topicsResult, questionsResult, testsResult, plansResult] = await Promise.all([
+      const [result, modulesResult, topicsResult, questionsResult, testsResult, plansResult, studentsResult] = await Promise.all([
         fetchSubjects(),
+        fetchModules(),
         fetchTopics(),
         fetchQuestions(),
         fetchTests(),
         fetchPlans(),
+        fetchStudents(),
       ]);
       if (cancelled) return;
-      if (result.ok && topicsResult.ok && questionsResult.ok && testsResult.ok && plansResult.ok) {
+      if (result.ok && modulesResult.ok && topicsResult.ok && questionsResult.ok && testsResult.ok && plansResult.ok && studentsResult.ok) {
         setSubjects(result.data);
+        setModules(modulesResult.data);
         setTopics(topicsResult.data);
         setQuestions(questionsResult.data);
         setTests(testsResult.data);
         setPlans(plansResult.data);
+        setStudents(studentsResult.data);
         setContentStatus("ready");
       } else {
         setContentStatus("error");
@@ -90,7 +101,7 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [setSubjects, setTopics, setQuestions, setTests, setPlans, contentAttempt]);
+  }, [setSubjects, setModules, setTopics, setQuestions, setTests, setPlans, setStudents, contentAttempt]);
 
   const reloadContent = useCallback(() => {
     setContentStatus("loading");
@@ -119,9 +130,20 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
     stripFromTests(removed);
   };
 
+  const removeModule = (id: string) => {
+    const topicIds = new Set(topics.items.filter((t) => t.moduleId === id).map((t) => t.id));
+    const removed = new Set(questions.items.filter((q) => topicIds.has(q.topicId)).map((q) => q.id));
+    modules.remove(id);
+    topics.setItems((prev) => prev.filter((t) => t.moduleId !== id));
+    questions.setItems((prev) => prev.filter((q) => !topicIds.has(q.topicId)));
+    tests.setItems((prev) => prev.map((t) => ({ ...t, topicIds: t.topicIds.filter((topicId) => !topicIds.has(topicId)) })));
+    stripFromTests(removed);
+  };
+
   const removeSubject = (id: string) => {
     const removed = new Set(questions.items.filter((q) => q.subjectId === id).map((q) => q.id));
     subjects.remove(id);
+    modules.setItems((prev) => prev.filter((m) => m.subjectId !== id));
     topics.setItems((prev) => prev.filter((t) => t.subjectId !== id));
     questions.setItems((prev) => prev.filter((q) => q.subjectId !== id));
     tests.setItems((prev) =>
@@ -137,6 +159,7 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const value: AdminStore = {
     students,
     subjects,
+    modules,
     contentStatus,
     reloadContent,
     topics,
@@ -147,6 +170,7 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
     results: resultsData,
     payments: paymentsData,
     removeSubject,
+    removeModule,
     removeTopic,
     removeQuestion,
   };

@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { getAdminProfile } from "../controllers/auth.controller";
+import { moduleRouter } from "./module.routes";
+import { studentAdminRouter } from "./student-admin.routes";
 import { subjectRouter } from "./subject.routes";
 import { planRouter } from "./plan.routes";
 import { questionRouter } from "./question.routes";
@@ -13,7 +15,9 @@ export const adminRouter = Router();
 adminRouter.use(requireAdmin);
 adminRouter.get("/profile", getAdminProfile);
 adminRouter.use("/subjects", subjectRouter);
+adminRouter.use("/modules", moduleRouter);
 adminRouter.use("/topics", topicRouter);
 adminRouter.use("/questions", questionRouter);
 adminRouter.use("/tests", testRouter);
 adminRouter.use("/plans", planRouter);
+adminRouter.use("/students", studentAdminRouter);

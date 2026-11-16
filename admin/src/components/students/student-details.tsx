@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Award, CalendarDays, Crown, GraduationCap, Mail, MapPin, Pencil, Phone, Target, UserCheck, UserX, Users } from "lucide-react";
+import { ArrowLeft, Award, CalendarDays, Crown, GraduationCap, Mail, Pencil, Phone, Target, UserCheck, UserX, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { BarList } from "@/components/charts/bar-list";
@@ -19,7 +19,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs } from "@/components/ui/tabs";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { indexById, resultAccuracy, scoreTone } from "@/lib/selectors";
-import type { Payment, TestResult } from "@/types";
+import { updateStudent } from "@/lib/students-api";
+import type { Payment, StudentStatus, TestResult } from "@/types";
 import { StudentFormModal } from "./student-form-modal";
 
 type DetailTab = "overview" | "history" | "performance" | "subscription";
@@ -47,13 +48,35 @@ function MiniStat({ label, value, icon: Icon }: { label: string; value: string; 
 }
 
 export function StudentDetails({ id }: { id: string }) {
-  const { students, plans, results, tests, subjects, payments } = useAdminStore();
+  const { students, plans, results, tests, subjects, payments, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
   const [tab, setTab] = useState<DetailTab>("overview");
   const [editing, setEditing] = useState(false);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
 
   const student = students.items.find((s) => s.id === id);
+
+  // Opened straight from a link: wait for the server before saying the student is missing
+  if (!student && contentStatus === "loading") {
+    return (
+      <p role="status" className="py-16 text-center text-sm text-slate-500">
+        Loading student…
+      </p>
+    );
+  }
+
+  if (!student && contentStatus === "error") {
+    return (
+      <Card>
+        <EmptyState
+          icon={Users}
+          title="Could not load the student"
+          description="The server did not respond. Check that the backend is running."
+          action={<Button onClick={reloadContent}>Try again</Button>}
+        />
+      </Card>
+    );
+  }
 
   if (!student) {
     return (
@@ -149,9 +172,16 @@ export function StudentDetails({ id }: { id: string }) {
     { key: "status", header: "Status", cell: (payment) => <PaymentStatusBadge status={payment.status} /> },
   ];
 
+  // Sends the new status to the server, and shows it only when the server has saved it
+  async function changeStatus(next: StudentStatus) {
+    const result = await updateStudent(student!.id, { status: next });
+    if (!result.ok) return toast({ title: "Could not change the status", description: result.message, tone: "error" });
+    students.update(student!.id, result.data);
+    toast({ title: next === "active" ? "Student activated" : "Student deactivated", description: `${student!.name} is now ${next}.` });
+  }
+
   function activate() {
-    students.update(student!.id, { status: "active" });
-    toast({ title: "Student activated", description: `${student!.name} is now active.` });
+    void changeStatus("active");
   }
 
   return (
@@ -196,10 +226,9 @@ export function StudentDetails({ id }: { id: string }) {
             <ul className="mt-5 divide-y divide-slate-100 border-t border-slate-100">
               <InfoRow icon={Mail} label="Email" value={student.email} />
               <InfoRow icon={Phone} label="Mobile" value={student.phone} />
-              <InfoRow icon={MapPin} label="City" value={student.city} />
-              <InfoRow icon={GraduationCap} label="College" value={student.college} />
+              <InfoRow icon={GraduationCap} label="Preparing for" value={student.exam} />
               <InfoRow icon={CalendarDays} label="Registered" value={formatDate(student.registeredAt)} />
-              <InfoRow icon={CalendarDays} label="Last active" value={formatDate(student.lastActiveAt)} />
+              <InfoRow icon={CalendarDays} label="Last login" value={student.lastActiveAt ? formatDate(student.lastActiveAt) : "Not yet"} />
             </ul>
           </CardContent>
         </Card>
@@ -338,8 +367,7 @@ export function StudentDetails({ id }: { id: string }) {
         open={confirmingDeactivate}
         onClose={() => setConfirmingDeactivate(false)}
         onConfirm={() => {
-          students.update(student.id, { status: "inactive" });
-          toast({ title: "Student deactivated", description: `${student.name} is now inactive.` });
+          void changeStatus("inactive");
         }}
         title="Deactivate this student?"
         description={

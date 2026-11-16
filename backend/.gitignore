@@ -10,3 +10,6 @@ dist/
 # Logs
 npm-debug.log*
 *.log
+
+# Generated admin account SQL (holds a password hash)
+admin.sql

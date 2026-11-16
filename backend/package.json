@@ -12,7 +12,10 @@
     "seed:admin": "tsx src/scripts/seed-admin.ts",
     "seed:subjects": "tsx src/scripts/seed-subjects.ts",
     "db:setup": "tsx src/scripts/db-setup.ts",
-    "seed:plans": "tsx src/scripts/seed-plans.ts"
+    "seed:plans": "tsx src/scripts/seed-plans.ts",
+    "db:export-sql": "tsx src/scripts/export-sql.ts",
+    "admin:sql": "tsx src/scripts/admin-sql.ts",
+    "seed:demo": "tsx src/scripts/seed-demo.ts"
   },
   "engines": {
     "node": ">=20.9"

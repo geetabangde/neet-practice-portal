@@ -1,7 +1,7 @@
 export type DashboardNavItem = {
   label: string;
   href: string;
-  icon: "qbank" | "bookmarks" | "tests";
+  icon: "qbank" | "custom" | "bookmarks" | "tests";
 };
 
 export type DashboardSubject = {
@@ -33,8 +33,10 @@ export type DashboardPromo = {
 export type SubjectTopic = {
   name: string;
   mcqs: number;
-  // File name (without extension) in public/topics
-  image: string;
+  // File name (without extension) in public/topics. Missing = a letter badge is shown instead.
+  image?: string;
+  // How many of the MCQs this student has answered. Missing = nothing is shown.
+  done?: number;
   // True when the picture already has its own tile background and fills the box
   fullBleed?: boolean;
 };

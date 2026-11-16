@@ -7,59 +7,52 @@ import { Button } from "@/components/ui/button";
 import { SelectField, TextField } from "@/components/ui/form-controls";
 import { Modal } from "@/components/ui/modal";
 import { createTopic, updateTopic } from "@/lib/topics-api";
-import type { ActiveStatus, Topic } from "@/types";
+import type { ActiveStatus, Module, Topic } from "@/types";
 
 const FORM_ID = "topic-form";
 
-// "new" = adding, a Topic = editing it, null = closed
-export type TopicModalState = Topic | "new" | null;
-
-interface TopicErrors {
-  name?: string;
-  subjectId?: string;
-  form?: string;
-}
+// What the pop-up is doing. "moduleId" is the module the topic is added to (or is in, when editing).
+// null = closed.
+export type TopicModalState = { moduleId: string; topic: Topic | null } | null;
 
 function TopicForm({
+  modulesOfSubject,
+  moduleId: startModuleId,
   topic,
-  defaultSubjectId,
   onSaved,
   onSavingChange,
 }: {
+  // Only the modules of this subject: a topic can not move to another subject
+  modulesOfSubject: Module[];
+  moduleId: string;
   topic: Topic | null;
-  defaultSubjectId: string;
   onSaved: () => void;
   onSavingChange: (saving: boolean) => void;
 }) {
-  const { topics, subjects } = useAdminStore();
+  const { topics } = useAdminStore();
   const toast = useToast();
 
+  const [moduleId, setModuleId] = useState(startModuleId);
   const [name, setName] = useState(topic?.name ?? "");
-  const [subjectId, setSubjectId] = useState(topic?.subjectId ?? defaultSubjectId);
   const [status, setStatus] = useState<ActiveStatus>(topic?.status ?? "active");
-  const [errors, setErrors] = useState<TopicErrors>({});
+  const [nameError, setNameError] = useState<string>();
+  const [formError, setFormError] = useState<string>();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = name.trim();
-    const found: TopicErrors = {};
+    if (!trimmed) return setNameError("Enter the topic name.");
 
-    if (!subjectId) found.subjectId = "Choose the subject this topic belongs to.";
-    if (!trimmed) found.name = "Enter the topic name.";
-    else if (topics.items.some((t) => t.id !== topic?.id && t.subjectId === subjectId && t.name.toLowerCase() === trimmed.toLowerCase())) {
-      found.name = "This subject already has a topic with this name.";
-    }
-    setErrors(found);
-    if (Object.keys(found).length > 0) return;
-
+    setFormError(undefined);
     onSavingChange(true);
-    const fields = { subjectId, name: trimmed, status };
+    const fields = { moduleId, name: trimmed, status };
     const result = topic ? await updateTopic(topic.id, fields) : await createTopic(fields);
     onSavingChange(false);
 
     if (!result.ok) {
-      // 409 = the database says this name is taken inside the subject
-      setErrors(result.status === 409 ? { name: result.message } : { form: result.message });
+      // 409 = the database says this module already has a topic with this name
+      if (result.status === 409) setNameError(result.message);
+      else setFormError(result.message);
       return;
     }
     if (topic) {
@@ -74,17 +67,10 @@ function TopicForm({
 
   return (
     <form id={FORM_ID} onSubmit={onSubmit} noValidate className="space-y-4">
-      <SelectField
-        label="Subject"
-        required
-        value={subjectId}
-        onChange={(e) => setSubjectId(e.target.value)}
-        error={errors.subjectId}
-      >
-        <option value="">Choose a subject</option>
-        {subjects.items.map((subject) => (
-          <option key={subject.id} value={subject.id}>
-            {subject.name}
+      <SelectField label="Module" value={moduleId} onChange={(e) => setModuleId(e.target.value)} hint={topic ? "Change this to move the topic to another module." : undefined}>
+        {modulesOfSubject.map((module) => (
+          <option key={module.id} value={module.id}>
+            {module.name}
           </option>
         ))}
       </SelectField>
@@ -92,8 +78,11 @@ function TopicForm({
         label="Topic name"
         required
         value={name}
-        onChange={(e) => setName(e.target.value)}
-        error={errors.name}
+        onChange={(e) => {
+          setName(e.target.value);
+          setNameError(undefined);
+        }}
+        error={nameError}
         placeholder="e.g. Upper Limb"
       />
       <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value as ActiveStatus)}>
@@ -101,32 +90,33 @@ function TopicForm({
         <option value="inactive">Inactive</option>
       </SelectField>
 
-      {errors.form ? (
+      {formError ? (
         <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errors.form}
+          {formError}
         </p>
       ) : null}
     </form>
   );
 }
 
-interface TopicFormModalProps {
+export function TopicFormModal({
+  modulesOfSubject,
+  state,
+  onClose,
+}: {
+  modulesOfSubject: Module[];
   state: TopicModalState;
-  // The subject filter of the list page, so "Add topic" starts with it chosen
-  defaultSubjectId: string;
   onClose: () => void;
-}
-
-export function TopicFormModal({ state, defaultSubjectId, onClose }: TopicFormModalProps) {
-  const editing = state !== null && state !== "new" ? state : null;
+}) {
   const [saving, setSaving] = useState(false);
+  const editing = state?.topic ?? null;
 
   return (
     <Modal
       open={state !== null}
       onClose={onClose}
       title={editing ? "Edit topic" : "Add topic"}
-      description={editing ? "Change the topic's details." : "Create a topic inside a subject."}
+      description={editing ? "Change the topic's name, module or status." : "Create a topic inside a module."}
       footer={
         <>
           <Button variant="outline" onClick={onClose} disabled={saving}>
@@ -140,9 +130,10 @@ export function TopicFormModal({ state, defaultSubjectId, onClose }: TopicFormMo
     >
       {state !== null ? (
         <TopicForm
-          key={editing?.id ?? "new"}
+          key={editing?.id ?? `new-${state.moduleId}`}
+          modulesOfSubject={modulesOfSubject}
+          moduleId={state.moduleId}
           topic={editing}
-          defaultSubjectId={defaultSubjectId}
           onSaved={onClose}
           onSavingChange={setSaving}
         />

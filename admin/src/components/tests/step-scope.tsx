@@ -9,7 +9,7 @@ import type { StepProps } from "./test-form-types";
 
 // Step 2: which subjects and topics the test covers
 export function StepScope({ values, errors, update }: StepProps) {
-  const { subjects, topics, questions } = useAdminStore();
+  const { subjects, modules, topics, questions } = useAdminStore();
 
   const chosenSubjects = subjects.items.filter((subject) => values.subjectIds.includes(subject.id));
 
@@ -104,7 +104,7 @@ export function StepScope({ values, errors, update }: StepProps) {
                         <Checkbox
                           key={topic.id}
                           label={topic.name}
-                          description={`${topicQuestionCount(topic.id, questions.items)} questions`}
+                          description={`${modules.items.find((m) => m.id === topic.moduleId)?.name ?? "Module"} · ${topicQuestionCount(topic.id, questions.items)} questions`}
                           checked={values.topicIds.includes(topic.id)}
                           onChange={() => toggleTopic(topic.id)}
                         />

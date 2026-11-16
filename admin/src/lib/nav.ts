@@ -4,7 +4,6 @@ import {
   ClipboardList,
   Crown,
   FileQuestion,
-  Layers,
   LayoutDashboard,
   Settings,
   BookOpen,
@@ -35,7 +34,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Students", href: "/students", icon: Users },
       { label: "Subjects", href: "/subjects", icon: BookOpen },
-      { label: "Topics", href: "/topics", icon: Layers },
       { label: "Question Bank", href: "/questions", icon: FileQuestion },
       { label: "Test Management", href: "/tests", icon: ClipboardList },
     ],
@@ -87,12 +85,14 @@ export function breadcrumbsFor(pathname: string): Crumb[] {
 
   const newLabel: Record<string, string> = { "/questions": "Add Question", "/tests": "Create Test" };
   const editLabel: Record<string, string> = { "/questions": "Edit Question", "/tests": "Edit Test" };
-  const detailLabel: Record<string, string> = { "/students": "Student Details", "/results": "Result Details" };
+  const detailLabel: Record<string, string> = { "/students": "Student Details", "/results": "Result Details", "/subjects": "Subject Details" };
 
   rest.forEach((segment, index) => {
     const isLast = index === rest.length - 1;
     const href = isLast ? undefined : root.href;
-    if (segment === "new") {
+    if (segment === "import") {
+      crumbs.push({ label: "Import Questions" });
+    } else if (segment === "new") {
       crumbs.push({ label: newLabel[root.href] ?? "New" });
     } else if (segment === "edit") {
       crumbs.push({ label: editLabel[root.href] ?? "Edit" });

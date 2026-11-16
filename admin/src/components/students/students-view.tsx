@@ -11,6 +11,7 @@ import { useToast } from "@/components/providers/toast-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,6 +21,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { Tabs } from "@/components/ui/tabs";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatDate } from "@/lib/format";
+import { updateStudent } from "@/lib/students-api";
 import type { Student } from "@/types";
 import { StudentFormModal } from "./student-form-modal";
 
@@ -28,7 +30,7 @@ type StatusFilter = "all" | "active" | "inactive";
 const PAGE_SIZE = 8;
 
 export function StudentsView() {
-  const { students, plans } = useAdminStore();
+  const { students, plans, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
@@ -84,13 +86,36 @@ export function StudentsView() {
     setPlanFilter("all");
   };
 
-  function toggleStatus(student: Student) {
+  async function toggleStatus(student: Student) {
     const next = student.status === "active" ? "inactive" : "active";
-    students.update(student.id, { status: next });
+    const result = await updateStudent(student.id, { status: next });
+    if (!result.ok) return toast({ title: "Could not change the status", description: result.message, tone: "error" });
+    students.update(student.id, result.data);
     toast({
       title: next === "active" ? "Student activated" : "Student deactivated",
       description: `${student.name} is now ${next}.`,
     });
+  }
+
+  if (contentStatus === "loading") {
+    return (
+      <p role="status" className="py-16 text-center text-sm text-slate-500">
+        Loading students…
+      </p>
+    );
+  }
+
+  if (contentStatus === "error") {
+    return (
+      <Card>
+        <EmptyState
+          icon={Users}
+          title="Could not load students"
+          description="The server did not respond. Check that the backend is running."
+          action={<Button onClick={reloadContent}>Try again</Button>}
+        />
+      </Card>
+    );
   }
 
   return (
@@ -158,7 +183,7 @@ export function StudentsView() {
                 { label: `Edit ${student.name}`, icon: Pencil, onClick: () => setEditing(student) },
                 student.status === "active"
                   ? { label: `Deactivate ${student.name}`, icon: UserX, onClick: () => setToggling(student), danger: true }
-                  : { label: `Activate ${student.name}`, icon: UserCheck, onClick: () => toggleStatus(student) },
+                  : { label: `Activate ${student.name}`, icon: UserCheck, onClick: () => void toggleStatus(student) },
               ]}
             />
           )}
@@ -171,7 +196,7 @@ export function StudentsView() {
         open={toggling !== null}
         onClose={() => setToggling(null)}
         onConfirm={() => {
-          if (toggling) toggleStatus(toggling);
+          if (toggling) void toggleStatus(toggling);
         }}
         title="Deactivate this student?"
         description={

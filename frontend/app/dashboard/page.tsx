@@ -2,13 +2,8 @@ import type { Metadata } from "next";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ModulesCompleted from "@/components/dashboard/ModulesCompleted";
 import PromoCard from "@/components/dashboard/PromoCard";
-import SubjectCard from "@/components/dashboard/SubjectCard";
-import {
-  customModulePromo,
-  dashboardSubjects,
-  modulesSummary,
-  revisionPromo,
-} from "@/data/dashboard";
+import SubjectGrid from "@/components/dashboard/SubjectGrid";
+import { customModulePromo, modulesSummary, revisionPromo } from "@/data/dashboard";
 
 export const metadata: Metadata = {
   title: "Dashboard | HN QBank",
@@ -32,11 +27,7 @@ export default function DashboardPage() {
           <h1 id="subjects-heading" className="text-2xl font-bold">
             Subjects
           </h1>
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2">
-            {dashboardSubjects.map((subject) => (
-              <SubjectCard key={subject.name} subject={subject} />
-            ))}
-          </ul>
+          <SubjectGrid />
         </section>
       </div>
     </DashboardShell>

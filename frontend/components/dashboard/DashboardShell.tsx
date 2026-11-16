@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { StudentGate } from "@/components/auth/StudentGate";
 import { MenuIcon, SearchIcon } from "./icons";
 import Sidebar from "./Sidebar";
 
@@ -11,7 +12,16 @@ type DashboardShellProps = {
 
 // Frame for every dashboard page: dark sidebar + a rounded white panel.
 // The page content comes in as children, so it can stay a Server Component.
-export default function DashboardShell({ title, children }: DashboardShellProps) {
+// Only a signed-in student sees it: StudentGate sends everyone else to /login.
+export default function DashboardShell(props: DashboardShellProps) {
+  return (
+    <StudentGate>
+      <ShellFrame {...props} />
+    </StudentGate>
+  );
+}
+
+function ShellFrame({ title, children }: DashboardShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (

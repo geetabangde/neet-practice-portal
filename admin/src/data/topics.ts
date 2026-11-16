@@ -21,6 +21,7 @@ export const topicsData: Topic[] = topicSeeds
   .map((seed, i) => ({
     id: `t-${pad(i + 1)}`,
     subjectId: seed.subjectId,
+    moduleId: `m-${seed.subjectId}`,
     name: seed.name,
     // A few topics are switched off, to show both states
     status: i % 11 === 6 ? "inactive" : "active",

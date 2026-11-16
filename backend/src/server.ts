@@ -2,9 +2,11 @@
 import "dotenv/config";
 import { createApp } from "./app";
 import { assertAuthConfig } from "./services/auth.service";
+import { logOtpMode } from "./services/sms.service";
 
 // Stop at startup, not at the first login, when JWT_SECRET is missing or weak
 assertAuthConfig();
+logOtpMode();
 
 const port = Number(process.env.PORT) || 5000;
 

@@ -9,17 +9,6 @@ const names = [
   "Sneha Pillai", "Harsh Agarwal", "Aditi Kulkarni", "Manav Saxena", "Ishaan Khanna", "Myra Banerjee", "Zoya Ansari",
 ];
 
-const cities = ["Pune", "Delhi", "Mumbai", "Bengaluru", "Chennai", "Hyderabad", "Kolkata", "Jaipur", "Lucknow", "Ahmedabad"];
-
-const colleges = [
-  "Apex Medical College",
-  "Lotus Institute of Medical Sciences",
-  "Riverside Medical College",
-  "Crescent Institute of Medicine",
-  "Northfield Medical College",
-  "Summit Institute of Health Sciences",
-];
-
 // Which plan each student has. null = no paid plan.
 const planCycle: (string | null)[] = ["p-004", "p-003", null, "p-002", "p-001", "p-003", "p-004", null, "p-002", "p-003"];
 
@@ -30,8 +19,7 @@ export const studentsData: Student[] = names.map((name, i) => {
     name,
     email: `${name.toLowerCase().replace(" ", ".")}@example.com`,
     phone: `+91 98${pad(10000 + i * 37, 5)} ${pad(10000 + i * 91, 5)}`,
-    city: pick(cities, i * 3),
-    college: pick(colleges, i),
+    exam: i % 4 === 0 ? "FMGE" : "NEET PG",
     registeredAt: daysBefore(i * 5 + 2),
     lastActiveAt: daysBefore((i * 3) % 14),
     planId,

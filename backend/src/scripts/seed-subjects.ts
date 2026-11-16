@@ -3,19 +3,7 @@
 import "dotenv/config";
 import { pool } from "../config/db";
 import { CREATE_SUBJECTS_TABLE } from "../services/subject.service";
-
-const STARTER_SUBJECTS: [name: string, icon: string, description: string][] = [
-  ["Anatomy", "bone", "Gross anatomy, embryology, histology and neuroanatomy."],
-  ["Physiology", "activity", "Body systems, nerve and muscle physiology and homeostasis."],
-  ["Biochemistry", "flask", "Metabolism, enzymes, molecular biology and clinical biochemistry."],
-  ["Pathology", "microscope", "General and systemic pathology with haematology."],
-  ["Pharmacology", "pill", "General pharmacology, autonomic drugs and chemotherapy."],
-  ["Microbiology", "dna", "Bacteriology, virology, immunology and general microbiology."],
-  ["Community Medicine", "heart", "Epidemiology, biostatistics, preventive and social medicine."],
-  ["Ophthalmology", "eye", "Eye anatomy, refractive errors and common eye diseases."],
-  ["Anaesthesia", "syringe", "General and regional anaesthesia and perioperative care."],
-  ["Psychiatry", "brain", "Mood and psychotic disorders and psychiatric management."],
-];
+import { STARTER_SUBJECTS } from "./starter-data";
 
 async function main(): Promise<void> {
   await pool.query(CREATE_SUBJECTS_TABLE);

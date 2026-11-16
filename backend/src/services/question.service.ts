@@ -101,6 +101,21 @@ function toQuestion(row: QuestionRow): Question {
   };
 }
 
+// The rules for the finished question. A draft only needs text; a published question must be complete.
+export function findQuestionProblem(q: QuestionInput): string | null {
+  if (q.type === "single" && q.correct.length > 1) return "A single correct question can have only one correct option";
+  if (q.topicId !== null && q.subjectId === null) return "Choose the subject of this topic";
+  if (q.status === "draft") return null;
+
+  if (q.subjectId === null) return "Choose a subject";
+  if (q.topicId === null) return "Choose a topic";
+  for (const key of OPTION_KEYS) if (q.options[key] === "") return `Write option ${key}`;
+  if (q.correct.length === 0) return "Mark the correct answer";
+  if (q.type === "multiple" && q.correct.length < 2) return "A multiple correct question needs at least two correct options";
+  if (q.explanation === "") return "Write the explanation students will see";
+  return null;
+}
+
 // 1452 = subject_id or topic_id points to a row that does not exist
 export function isMissingParent(error: unknown): boolean {
   return typeof error === "object" && error !== null && "errno" in error && error.errno === 1452;
@@ -124,7 +139,8 @@ export async function getQuestion(id: number): Promise<Question | null> {
   return rows[0] ? toQuestion(rows[0]) : null;
 }
 
-function valuesOf(input: QuestionInput): (string | number | null)[] {
+// The values of a question in the order of the INSERT column list (used here and by the bulk import)
+export function questionValues(input: QuestionInput): (string | number | null)[] {
   return [
     input.subjectId,
     input.topicId,
@@ -148,7 +164,7 @@ export async function createQuestion(input: QuestionInput): Promise<Question> {
     `INSERT INTO questions (subject_id, topic_id, question_text, difficulty, type, option_a, option_b, option_c, option_d,
        correct, explanation, reference_text, image_name, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    valuesOf(input),
+    questionValues(input),
   );
   const created = await getQuestion(result.insertId);
   if (!created) throw new Error("Question was inserted but could not be read back");
@@ -162,7 +178,7 @@ export async function replaceQuestion(id: number, input: QuestionInput): Promise
        option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct = ?, explanation = ?,
        reference_text = ?, image_name = ?, status = ?
      WHERE id = ?`,
-    [...valuesOf(input), id],
+    [...questionValues(input), id],
   );
   return result.affectedRows === 1;
 }

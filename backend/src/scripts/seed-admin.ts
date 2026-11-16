@@ -1,22 +1,7 @@
 // One-time setup: creates the "admins" table and the first admin. Run with: npm run seed:admin
 import "dotenv/config";
 import { pool } from "../config/db";
-import { hashPassword } from "../services/auth.service";
-
-const CREATE_ADMINS_TABLE = `
-  CREATE TABLE IF NOT EXISTS admins (
-    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    name       VARCHAR(100) NOT NULL,
-    email      VARCHAR(190) NOT NULL,
-    password   VARCHAR(255) NOT NULL,
-    role       VARCHAR(30)  NOT NULL DEFAULT 'admin',
-    status     ENUM('active','inactive') NOT NULL DEFAULT 'active',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_admins_email (email)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`;
+import { CREATE_ADMINS_TABLE, hashPassword } from "../services/auth.service";
 
 async function main(): Promise<void> {
   const name = process.env.INITIAL_ADMIN_NAME?.trim();
