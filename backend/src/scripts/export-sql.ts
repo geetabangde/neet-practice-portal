@@ -4,12 +4,15 @@
 // (npm run admin:sql), because it needs a password hash.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { CREATE_ADMINS_TABLE } from "../services/auth.service";
+import { CREATE_BOOKMARKS_TABLE } from "../services/bookmark.service";
+import { CREATE_CUSTOM_MODULE_TABLES } from "../services/custom-module.service";
 import { CREATE_MODULES_TABLE } from "../services/module.service";
 import { CREATE_PLAN_TABLES } from "../services/plan.service";
 import { CREATE_QUESTIONS_TABLE } from "../services/question.service";
 import { CREATE_ANSWERS_TABLE } from "../services/student-practice.service";
 import { CREATE_STUDENT_TABLES } from "../services/student.service";
 import { CREATE_SUBJECTS_TABLE } from "../services/subject.service";
+import { CREATE_ATTEMPT_TABLES } from "../services/test-attempt.service";
 import { CREATE_TEST_TABLES } from "../services/test.service";
 import { CREATE_TOPICS_TABLE } from "../services/topic.service";
 import { STARTER_PLANS, STARTER_SUBJECTS } from "./starter-data";
@@ -28,6 +31,9 @@ const tables = [
   ...CREATE_PLAN_TABLES,
   ...CREATE_STUDENT_TABLES,
   CREATE_ANSWERS_TABLE,
+  CREATE_BOOKMARKS_TABLE,
+  ...CREATE_CUSTOM_MODULE_TABLES,
+  ...CREATE_ATTEMPT_TABLES,
 ];
 
 const lines: string[] = [

@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback } from "react";
-import { clearToken, getToken } from "@/lib/studentAuth";
-import { fetchTopicQuestions, submitAnswer, type Letter } from "@/lib/studentContent";
+import { fetchTopicQuestions } from "@/lib/studentContent";
 import { useStudentFetch } from "@/lib/useStudentFetch";
-import PracticeView, { type SubmitAnswer } from "./PracticeView";
+import PracticeView from "./PracticeView";
+import { useSubmitAnswer } from "./useSubmitAnswer";
+import { useToggleBookmark } from "./useToggleBookmark";
 
 const messageClass = "mt-5 rounded-xl bg-white p-6 text-sm text-slate-600";
 
@@ -34,26 +34,12 @@ function Breadcrumb({ slug, subjectName, topicName }: { slug: string; subjectNam
 
 // The practice page of one topic: loads its published questions from the server and lets the student answer them
 export default function TopicPractice({ slug, topicId }: { slug: string; topicId: string }) {
-  const router = useRouter();
   // useCallback keeps the same function between renders, so the page loads once, not on every render
   const load = useCallback((token: string) => fetchTopicQuestions(token, topicId), [topicId]);
   const { state, reload } = useStudentFetch(load);
 
-  // Sends one answer to the server. A refused login sends the student back to /login.
-  const submit: SubmitAnswer = async (questionId: number, selected: Letter[]) => {
-    const token = getToken();
-    if (!token) {
-      router.replace("/login");
-      return { ok: false, message: "Please log in again." };
-    }
-    const result = await submitAnswer(token, questionId, selected);
-    if (result.ok) return { ok: true, feedback: result.data };
-    if (result.status === 401 || result.status === 403) {
-      clearToken();
-      router.replace("/login");
-    }
-    return { ok: false, message: result.message };
-  };
+  const submit = useSubmitAnswer();
+  const toggleBookmark = useToggleBookmark();
 
   if (state.status === "loading") {
     return (
@@ -113,7 +99,7 @@ export default function TopicPractice({ slug, topicId }: { slug: string; topicId
       ) : (
         <div className="mt-4 flex flex-1 flex-col">
           {/* key: a different topic starts the session from the first question */}
-          <PracticeView key={topic.id} title={topic.name} questions={questions} submit={submit} />
+          <PracticeView key={topic.id} title={topic.name} questions={questions} submit={submit} toggleBookmark={toggleBookmark} />
         </div>
       )}
     </>

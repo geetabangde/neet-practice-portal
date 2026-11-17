@@ -20,8 +20,11 @@ function toTest(test: ApiTest): MockTest {
   };
 }
 
-// What the wizard sends
+// Everything a test has, apart from its id
 export type TestFields = Omit<MockTest, "id">;
+
+// What making a test needs: only the basics. A new test starts as a draft with no questions; they are added afterwards.
+export type TestBasics = Pick<MockTest, "title" | "description" | "kind" | "pattern" | "durationMinutes" | "marksPerQuestion" | "negativeMarking" | "startAt" | "endAt">;
 
 async function mapTest(request: Promise<ApiResult<{ test: ApiTest }>>): Promise<ApiResult<MockTest>> {
   const result = await request;
@@ -33,7 +36,7 @@ export async function fetchTests(): Promise<ApiResult<MockTest[]>> {
   return result.ok ? { ok: true, data: result.data.tests.map(toTest) } : result;
 }
 
-export function createTest(fields: TestFields): Promise<ApiResult<MockTest>> {
+export function createTest(fields: TestBasics): Promise<ApiResult<MockTest>> {
   return mapTest(apiRequest("/api/admin/tests", { method: "POST", body: fields }));
 }
 

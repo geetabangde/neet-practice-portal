@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import TestSeriesView from "@/components/dashboard/TestSeriesView";
-import { testSeries, testSeriesYear } from "@/data/dashboard";
 
 export const metadata: Metadata = {
   title: "Test Series | HN QBank",
@@ -11,7 +10,7 @@ export const metadata: Metadata = {
 export default function TestSeriesPage() {
   return (
     <DashboardShell title="QBank Edition 8">
-      <TestSeriesView year={testSeriesYear} tests={testSeries} />
+      <TestSeriesView />
     </DashboardShell>
   );
 }

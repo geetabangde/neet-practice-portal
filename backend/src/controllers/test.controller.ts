@@ -7,19 +7,22 @@ import {
   isMissingReference,
   listTests,
   replaceTest,
-  subjectsOfTopics,
+  scopeOfQuestions,
   type MockTest,
   type MockTestInput,
+  type TestKind,
+  type TestPattern,
   type TestStatus,
 } from "../services/test.service";
 
-type Parsed = { ok: true; value: Partial<MockTestInput> } | { ok: false; message: string };
+// What the admin may send. A test is made from its basics; its questions are added later (PATCH questionIds).
+// The subjects and topics of a test are not sent: they are worked out from its questions.
+type Fields = Partial<Omit<MockTestInput, "subjectIds" | "topicIds">>;
+type Parsed = { ok: true; value: Fields } | { ok: false; message: string };
 
 const bad = (message: string): Parsed => ({ ok: false, message });
 
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-const MAX_SUBJECTS = 200;
-const MAX_TOPICS = 1000;
 const MAX_QUESTIONS = 1000;
 
 // "12" or 12 -> 12; anything else -> null
@@ -52,11 +55,11 @@ function toMoney(raw: unknown, allowZero: boolean): number | null {
 }
 
 // Checks the type and size of every field that was sent. The rules about the whole test
-// (end after start, topics inside the subjects ...) are in problemWith.
+// (end after start, questions that exist ...) are in prepare.
 function parseFields(body: unknown): Parsed {
   if (typeof body !== "object" || body === null) return bad("Send the test details as JSON");
   const data = body as Record<string, unknown>;
-  const value: Partial<MockTestInput> = {};
+  const value: Fields = {};
 
   if (data.title !== undefined) {
     if (typeof data.title !== "string" || data.title.trim() === "") return bad("Give the test a title");
@@ -68,6 +71,14 @@ function parseFields(body: unknown): Parsed {
       return bad("The description must be 1000 characters or fewer");
     }
     value.description = data.description.trim();
+  }
+  if (data.kind !== undefined) {
+    if (data.kind !== "grand" && data.kind !== "mini" && data.kind !== "subject") return bad("Test type must be grand, mini or subject");
+    value.kind = data.kind as TestKind;
+  }
+  if (data.pattern !== undefined) {
+    if (data.pattern !== "NEET" && data.pattern !== "INICET") return bad("Pattern must be NEET or INICET");
+    value.pattern = data.pattern as TestPattern;
   }
   if (data.durationMinutes !== undefined) {
     const minutes = toId(data.durationMinutes);
@@ -91,16 +102,10 @@ function parseFields(body: unknown): Parsed {
     }
     value[key] = data[key];
   }
-  const lists = [
-    ["subjectIds", MAX_SUBJECTS, "subjects"],
-    ["topicIds", MAX_TOPICS, "topics"],
-    ["questionIds", MAX_QUESTIONS, "questions"],
-  ] as const;
-  for (const [key, max, label] of lists) {
-    if (data[key] === undefined) continue;
-    const ids = toIdList(data[key], max);
-    if (ids === null) return bad(`The list of ${label} is not valid`);
-    value[key] = ids;
+  if (data.questionIds !== undefined) {
+    const ids = toIdList(data.questionIds, MAX_QUESTIONS);
+    if (ids === null) return bad(`The list of questions is not valid (at most ${MAX_QUESTIONS})`);
+    value.questionIds = ids;
   }
   if (data.status !== undefined) {
     if (data.status !== "draft" && data.status !== "published" && data.status !== "completed") {
@@ -112,43 +117,57 @@ function parseFields(body: unknown): Parsed {
 }
 
 const NOT_FOUND = { success: false, message: "Test not found" };
-const NO_REFERENCE = { success: false, message: "A chosen subject, topic or question does not exist" };
+const NO_REFERENCE = { success: false, message: "A chosen question does not exist" };
 const FAILED = { success: false, message: "Something went wrong" };
 
-// The rules for a finished test, the same ones the admin wizard applies. Returns a message, or null when fine.
-async function problemWith(test: Partial<MockTestInput>, alreadyPublishedQuestionIds: number[]): Promise<string | null> {
-  if (!test.title) return "Give the test a title";
-  if (test.durationMinutes === undefined) return "Enter the duration in minutes";
-  if (test.marksPerQuestion === undefined) return "Enter the marks for each question";
-  if (!test.startAt) return "Choose when the test starts";
-  if (!test.endAt) return "Choose when the test ends";
-  if (test.endAt <= test.startAt) return "The end must be after the start";
-  if (!test.subjectIds || test.subjectIds.length === 0) return "Choose at least one subject";
-  if (!test.topicIds || test.topicIds.length === 0) return "Choose at least one topic";
-  if (!test.questionIds || test.questionIds.length === 0) return "Select at least one question";
-  if (test.negativeMarking !== undefined && test.negativeMarking > test.marksPerQuestion) {
-    return "Negative marking cannot be more than the marks for a correct answer";
-  }
+type Prepared = { ok: true; input: MockTestInput } | { ok: false; message: string };
 
-  // Every topic must belong to one of the chosen subjects
-  const owners = await subjectsOfTopics(test.topicIds);
-  for (const topicId of test.topicIds) {
-    const owner = owners.get(topicId);
-    if (owner !== undefined && !test.subjectIds.includes(owner)) return "A chosen topic does not belong to the chosen subjects";
-  }
+// Applies the rules to a finished test (the saved test with the changes merged in) and fills in its subjects
+// and topics from its questions. "trusted" are questions that were already in a published test: they are not
+// re-checked, so a question that was later unpublished does not block marking the test completed.
+async function prepare(test: Fields, trusted: number[]): Promise<Prepared> {
+  if (!test.title) return { ok: false, message: "Give the test a title" };
+  if (test.durationMinutes === undefined) return { ok: false, message: "Enter the duration in minutes" };
+  if (test.marksPerQuestion === undefined) return { ok: false, message: "Enter the marks for each question" };
+  if (!test.startAt) return { ok: false, message: "Choose when the test starts" };
+  if (!test.endAt) return { ok: false, message: "Choose when the test ends" };
+  if (test.endAt <= test.startAt) return { ok: false, message: "The end must be after the start" };
+  const negativeMarking = test.negativeMarking ?? 0;
+  if (negativeMarking > test.marksPerQuestion) return { ok: false, message: "Negative marking cannot be more than the marks for a correct answer" };
 
-  // A published test may only hold published questions. Questions that were already in it are not
-  // re-checked, so a question that was later unpublished does not block marking the test completed.
-  if (test.status === "published") {
-    const toCheck = test.questionIds.filter((id) => !alreadyPublishedQuestionIds.includes(id));
+  const questionIds = test.questionIds ?? [];
+  const status = test.status ?? "draft";
+
+  const scope = await scopeOfQuestions(questionIds);
+  if (scope.found !== questionIds.length) return { ok: false, message: NO_REFERENCE.message };
+
+  if (status === "published") {
+    if (questionIds.length === 0) return { ok: false, message: "Add at least one question before publishing the test" };
+    const toCheck = questionIds.filter((id) => !trusted.includes(id));
     if ((await countPublishedQuestions(toCheck)) !== toCheck.length) {
-      return "A published test can only contain published questions";
+      return { ok: false, message: "A published test can only contain published questions" };
     }
   }
-  return null;
-}
 
-const DEFAULTS = { description: "", negativeMarking: 0, status: "draft" as TestStatus };
+  return {
+    ok: true,
+    input: {
+      title: test.title,
+      description: test.description ?? "",
+      kind: test.kind ?? "grand",
+      pattern: test.pattern ?? "NEET",
+      subjectIds: scope.subjectIds,
+      topicIds: scope.topicIds,
+      questionIds,
+      durationMinutes: test.durationMinutes,
+      marksPerQuestion: test.marksPerQuestion,
+      negativeMarking,
+      startAt: test.startAt,
+      endAt: test.endAt,
+      status,
+    },
+  };
+}
 
 export async function listTestsHandler(_req: Request, res: Response): Promise<void> {
   try {
@@ -175,20 +194,20 @@ export async function getTestHandler(req: Request, res: Response): Promise<void>
   }
 }
 
+// Makes a test from its basics. It starts as a draft with no questions; questions are added afterwards.
 export async function createTestHandler(req: Request, res: Response): Promise<void> {
   const parsed = parseFields(req.body);
   if (!parsed.ok) {
     res.status(400).json({ success: false, message: parsed.message });
     return;
   }
-  const test = { ...DEFAULTS, ...parsed.value };
   try {
-    const problem = await problemWith(test, []);
-    if (problem) {
-      res.status(400).json({ success: false, message: problem });
+    const prepared = await prepare(parsed.value, []);
+    if (!prepared.ok) {
+      res.status(400).json({ success: false, message: prepared.message });
       return;
     }
-    res.status(201).json({ success: true, message: "Test created", data: { test: await createTest(test as MockTestInput) } });
+    res.status(201).json({ success: true, message: "Test created", data: { test: await createTest(prepared.input) } });
   } catch (error) {
     if (isMissingReference(error)) {
       res.status(400).json(NO_REFERENCE);
@@ -199,8 +218,8 @@ export async function createTestHandler(req: Request, res: Response): Promise<vo
   }
 }
 
-// PATCH: send only the fields that change. They are merged into the saved test, and the merged
-// result must pass the same rules as a new test.
+// PATCH: send only the fields that change (including questionIds, the full new list of questions). They are
+// merged into the saved test, and the merged result must pass the same rules as a new test.
 export async function updateTestHandler(req: Request, res: Response): Promise<void> {
   const id = toId(req.params.id);
   if (id === null) {
@@ -218,17 +237,16 @@ export async function updateTestHandler(req: Request, res: Response): Promise<vo
       res.status(404).json(NOT_FOUND);
       return;
     }
-    const { id: _id, ...currentFields } = current;
-    const merged: MockTestInput = { ...currentFields, ...parsed.value };
+    const { id: _id, subjectIds: _subjects, topicIds: _topics, ...currentFields } = current;
+    const merged: Fields = { ...currentFields, ...parsed.value };
 
-    // Questions already in a published test are trusted; everything else is checked
     const trusted = current.status === "published" && merged.status === "published" ? current.questionIds : [];
-    const problem = await problemWith(merged, trusted);
-    if (problem) {
-      res.status(400).json({ success: false, message: problem });
+    const prepared = await prepare(merged, trusted);
+    if (!prepared.ok) {
+      res.status(400).json({ success: false, message: prepared.message });
       return;
     }
-    await replaceTest(id, merged);
+    await replaceTest(id, prepared.input);
     res.json({ success: true, message: "Test updated", data: { test: await getTest(id) } });
   } catch (error) {
     if (isMissingReference(error)) {

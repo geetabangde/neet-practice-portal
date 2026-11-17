@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 import { CloseIcon } from "./icons";
 
@@ -7,7 +8,13 @@ type TestResultProps = {
   open: boolean;
   onClose: () => void;
   onReview: () => void;
-  onRetake: () => void;
+  // Leave it out when the test cannot be taken again (then finishHref is used)
+  onRetake?: () => void;
+  // Where the last button goes instead of "Retake Test"
+  finishHref?: string;
+  finishLabel?: string;
+  // Marks scored out of the total, shown under the title
+  marks?: { score: number; total: number };
   // False when the questions have no answer key, so nothing can be graded
   canGrade: boolean;
   correct: number;
@@ -67,6 +74,9 @@ export default function TestResult({
   onClose,
   onReview,
   onRetake,
+  finishHref,
+  finishLabel = "Back to Test Series",
+  marks,
   canGrade,
   correct,
   incorrect,
@@ -131,6 +141,11 @@ export default function TestResult({
           Test Completed
         </h2>
         <p className="mt-1 text-center text-xs">Great effort, keep going!</p>
+        {marks ? (
+          <p className="mt-2 text-center text-sm font-semibold">
+            Marks: {marks.score} out of {marks.total}
+          </p>
+        ) : null}
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
@@ -194,14 +209,23 @@ export default function TestResult({
           >
             Review answer
           </button>
-          <button
-            suppressHydrationWarning
-            type="button"
-            onClick={onRetake}
-            className="rounded-lg bg-accent px-4 py-2.5 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            Retake Test
-          </button>
+          {finishHref ? (
+            <Link
+              href={finishHref}
+              className="rounded-lg bg-accent px-4 py-2.5 text-center text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {finishLabel}
+            </Link>
+          ) : (
+            <button
+              suppressHydrationWarning
+              type="button"
+              onClick={onRetake}
+              className="rounded-lg bg-accent px-4 py-2.5 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              Retake Test
+            </button>
+          )}
         </div>
       </div>
     </dialog>

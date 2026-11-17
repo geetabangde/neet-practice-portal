@@ -1,74 +1,84 @@
 import Image from "next/image";
-import { customModuleColumns, customSubjectModules, dashboardSubjects } from "@/data/dashboard";
+import { subjectLook } from "@/lib/subjectLook";
+import type { PickerSubject } from "@/lib/studentContent";
 import { DocIcon } from "./icons";
 
 type SubjectPickerProps = {
-  // Selected subject slug -> titles of its selected modules
-  selected: Record<string, string[]>;
-  onToggleSubject: (slug: string) => void;
-  onToggleModule: (slug: string, title: string) => void;
+  subjects: PickerSubject[];
+  // Subject id -> ids of the modules that are ticked in it. A subject that is not here is not chosen.
+  selected: Record<number, number[]>;
+  onToggleSubject: (subject: PickerSubject) => void;
+  onToggleModule: (subject: PickerSubject, moduleId: number) => void;
 };
 
-export default function SubjectPicker({ selected, onToggleSubject, onToggleModule }: SubjectPickerProps) {
+// A subject has its picture when one was designed for it, otherwise a letter badge
+function SubjectPicture({ icon, name, size }: { icon: string | null; name: string; size: "large" | "small" }) {
+  const box = size === "large" ? "h-10 w-10" : "h-8 w-8";
+  return icon ? (
+    <Image src={`/subjects/${icon}.png`} alt="" width={60} height={60} className={`${box} shrink-0 object-contain`} />
+  ) : (
+    <span aria-hidden="true" className={`${box} flex shrink-0 items-center justify-center rounded-full bg-white/70 text-base font-bold text-accent-dark`}>
+      {name.charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+export default function SubjectPicker({ subjects, selected, onToggleSubject, onToggleModule }: SubjectPickerProps) {
+  // Two columns, filled one subject at a time from left to right
+  const columns = [subjects.filter((_, index) => index % 2 === 0), subjects.filter((_, index) => index % 2 === 1)];
+
   return (
     <div className="mt-4 grid items-start gap-3 md:grid-cols-2">
-      {customModuleColumns.map((column, columnIndex) => (
+      {columns.map((column, columnIndex) => (
         <div key={columnIndex} className="space-y-3">
-          {column.map((slug) => {
-            const subject = dashboardSubjects.find((s) => s.slug === slug);
-            if (!subject) return null;
-            const isSelected = slug in selected;
-            const modules = customSubjectModules[slug];
+          {column.map((subject) => {
+            const look = subjectLook(subject.slug, subject.id);
+            const ticked = selected[subject.id];
+            const isSelected = ticked !== undefined;
+            const hasModules = subject.modules.length > 0;
 
             return (
-              <div key={slug} className={`rounded-xl p-4 ${subject.toneClass}`}>
-                <label className="flex cursor-pointer items-center gap-4">
-                  <Image
-                    src={`/subjects/${subject.icon}.png`}
-                    alt=""
-                    width={60}
-                    height={60}
-                    className="h-10 w-10 shrink-0 object-contain"
-                  />
-                  <span className="flex-1 text-base font-semibold">{subject.name}</span>
+              <div key={subject.id} className={`rounded-xl p-4 ${look.toneClass}`}>
+                <label className={`flex items-center gap-4 ${hasModules ? "cursor-pointer" : "opacity-70"}`}>
+                  <SubjectPicture icon={look.icon} name={subject.name} size="large" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base font-semibold">{subject.name}</span>
+                    {!hasModules ? <span className="block text-[11px] text-slate-700">No modules yet</span> : null}
+                  </span>
                   <input
                     suppressHydrationWarning
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => onToggleSubject(slug)}
+                    disabled={!hasModules}
+                    onChange={() => onToggleSubject(subject)}
+                    aria-label={`Choose ${subject.name}`}
                     className="h-4 w-4 accent-accent"
                   />
                 </label>
 
-                {isSelected && modules ? (
+                {isSelected && hasModules ? (
                   <ul
                     aria-label={`${subject.name} modules`}
                     className="mt-4 max-h-44 space-y-2 overflow-y-auto pr-3 [scrollbar-color:var(--color-accent)_rgba(0,0,0,0.06)] [scrollbar-width:thin]"
                   >
-                    {modules.map((module) => (
-                      <li key={module.title}>
+                    {subject.modules.map((module) => (
+                      <li key={module.id}>
                         <label className="flex cursor-pointer items-center gap-3 rounded-lg bg-white p-1.5 pr-3">
                           <input
                             suppressHydrationWarning
                             type="checkbox"
-                            checked={selected[slug].includes(module.title)}
-                            onChange={() => onToggleModule(slug, module.title)}
+                            checked={ticked.includes(module.id)}
+                            onChange={() => onToggleModule(subject, module.id)}
                             className="h-3.5 w-3.5 shrink-0 accent-accent"
                           />
                           <span className="flex h-11 w-16 shrink-0 items-center justify-center rounded-md bg-accent-soft">
-                            <Image
-                              src={`/subjects/${subject.icon}.png`}
-                              alt=""
-                              width={40}
-                              height={40}
-                              className="h-8 w-8 object-contain"
-                            />
+                            <SubjectPicture icon={look.icon} name={subject.name} size="small" />
                           </span>
                           <span className="min-w-0">
-                            <span className="block truncate text-sm font-semibold">{module.title}</span>
+                            <span className="block truncate text-sm font-semibold">{module.name}</span>
                             <span className="mt-0.5 flex items-center gap-1 text-xs text-slate-700">
                               <DocIcon className="h-3.5 w-3.5" />
-                              {module.count} Module
+                              {module.questionCount} MCQs
                             </span>
                           </span>
                         </label>

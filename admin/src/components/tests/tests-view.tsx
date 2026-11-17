@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ClipboardList, Pencil, Plus, Rocket, Trash2 } from "lucide-react";
+import { CheckCircle2, ClipboardList, ListChecks, Pencil, Plus, Rocket, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { deleteTest, updateTest } from "@/lib/tests-api";
@@ -20,9 +20,12 @@ import { Tabs } from "@/components/ui/tabs";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatDateTime, plural } from "@/lib/format";
 import { testTotals } from "@/lib/selectors";
-import type { MockTest, TestStatus } from "@/types";
+import type { MockTest, TestKind, TestStatus } from "@/types";
 
 type StatusFilter = "all" | TestStatus;
+type KindFilter = TestKind;
+
+const KIND_LABELS: Record<TestKind, string> = { grand: "Grand Tests", mini: "Mini Tests", subject: "Subject Tests" };
 
 const PAGE_SIZE = 8;
 
@@ -32,16 +35,20 @@ export function TestsView() {
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [kind, setKind] = useState<KindFilter>("grand");
   const [deleting, setDeleting] = useState<MockTest | null>(null);
 
   const term = query.trim().toLowerCase();
   const filtered = tests.items.filter((test) => {
+    if (test.kind !== kind) return false;
     if (status !== "all" && test.status !== status) return false;
     return !term || test.title.toLowerCase().includes(term) || test.description.toLowerCase().includes(term);
   });
   const pagination = usePagination(filtered, PAGE_SIZE);
 
-  const countOf = (value: TestStatus) => tests.items.filter((t) => t.status === value).length;
+  const ofKind = tests.items.filter((t) => t.kind === kind);
+  const countOf = (value: TestStatus) => ofKind.filter((t) => t.status === value).length;
+  const kindCount = (value: TestKind) => tests.items.filter((t) => t.kind === value).length;
 
   async function changeStatus(test: MockTest, next: TestStatus) {
     const result = await updateTest(test.id, { status: next });
@@ -79,13 +86,31 @@ export function TestsView() {
               .map((id) => subjects.items.find((s) => s.id === id)?.name)
               .filter(Boolean)
               .slice(0, 3)
-              .join(", ") || "No subjects"}
+              .join(", ") || "No questions yet"}
             {test.subjectIds.length > 3 ? ` +${test.subjectIds.length - 3}` : ""}
           </p>
         </div>
       ),
     },
-    { key: "questions", header: "Questions", align: "right", cell: (test) => testTotals(test).totalQuestions },
+    {
+      key: "questions",
+      header: "Questions",
+      align: "right",
+      cell: (test) => {
+        const total = testTotals(test).totalQuestions;
+        return (
+          <Link
+            href={`/tests/${test.id}/questions`}
+            className={buttonStyles({ variant: "outline", size: "sm" })}
+            aria-label={`${total === 0 ? "Add questions to" : "Manage questions of"} ${test.title}`}
+          >
+            <ListChecks className="h-4 w-4" aria-hidden="true" />
+            {total === 0 ? "Add questions" : `${total} · Manage`}
+          </Link>
+        );
+      },
+    },
+    { key: "pattern", header: "Pattern", hideBelow: "lg", cell: (test) => test.pattern },
     { key: "marks", header: "Marks", align: "right", cell: (test) => testTotals(test).totalMarks },
     { key: "duration", header: "Duration", cell: (test) => `${test.durationMinutes} min` },
     { key: "negative", header: "Negative", hideOnMobile: true, hideBelow: "xl", cell: (test) => (test.negativeMarking > 0 ? `−${test.negativeMarking}` : "None") },
@@ -97,7 +122,7 @@ export function TestsView() {
     <>
       <PageHeader
         title="Test management"
-        description="Create mock tests, choose their questions, and decide when students can take them."
+        description="Create a test, then use its Questions button to choose the questions. Publish it when it is ready."
         actions={
           <Link href="/tests/new" className={buttonStyles()}>
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -120,11 +145,17 @@ export function TestsView() {
           <>
             <SearchInput value={query} onChange={setQuery} placeholder="Search tests" className="w-full sm:w-72" />
             <Tabs
+              ariaLabel="Test type"
+              value={kind}
+              onChange={setKind}
+              tabs={(["grand", "mini", "subject"] as const).map((value) => ({ value, label: KIND_LABELS[value], count: kindCount(value) }))}
+            />
+            <Tabs
               ariaLabel="Filter by status"
               value={status}
               onChange={setStatus}
               tabs={[
-                { value: "all", label: "All", count: tests.items.length },
+                { value: "all", label: "All", count: ofKind.length },
                 { value: "draft", label: "Draft", count: countOf("draft") },
                 { value: "published", label: "Published", count: countOf("published") },
                 { value: "completed", label: "Completed", count: countOf("completed") },
@@ -162,7 +193,10 @@ export function TestsView() {
             />
           }
           actions={(test) => {
-            const actions: RowAction[] = [{ label: `Edit ${test.title}`, icon: Pencil, href: `/tests/${test.id}/edit` }];
+            const actions: RowAction[] = [
+              { label: `Questions of ${test.title}`, icon: ListChecks, href: `/tests/${test.id}/questions` },
+              { label: `Edit ${test.title}`, icon: Pencil, href: `/tests/${test.id}/edit` },
+            ];
             if (test.status === "draft") {
               actions.unshift({ label: `Publish ${test.title}`, icon: Rocket, onClick: () => void changeStatus(test, "published") });
             }

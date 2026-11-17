@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { customModuleTags, customSubjectModules, dashboardSubjects } from "@/data/dashboard";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { getToken } from "@/lib/studentAuth";
+import { createCustomModule, fetchCustomOptions, type PickerSubject } from "@/lib/studentContent";
+import { useStudentFetch } from "@/lib/useStudentFetch";
 import { ArrowRightIcon } from "./icons";
 import ModuleReadyDialog, { type ReadyRow } from "./ModuleReadyDialog";
 import SectionCard from "./SectionCard";
 import SubjectPicker from "./SubjectPicker";
 
 type Source = "all" | "qbank" | "bookmarked" | "graded";
-type Mode = "regular" | "exam";
 type QbankFilter = "attempted" | "incorrect" | "unattempted";
 
-const DIFFICULTIES = ["Easy", "Medium", "Hard"];
+const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
+const MAX_QUESTIONS = 200;
 
 const iconProps = {
   viewBox: "0 0 24 24",
@@ -49,12 +51,6 @@ const icons: Record<string, ReactNode> = {
       <rect x="13" y="13" width="7" height="7" rx="1.5" />
     </svg>
   ),
-  tags: (
-    <svg {...iconProps}>
-      <path d="M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8-8-8Z" />
-      <path d="M8.5 8.5h.01" />
-    </svg>
-  ),
   mode: (
     <svg {...iconProps}>
       <circle cx="12" cy="12" r="8" />
@@ -66,8 +62,40 @@ const icons: Record<string, ReactNode> = {
 const stepperButton =
   "flex h-8 w-8 items-center justify-center rounded-md border text-lg leading-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-// Every option starts out as in the Figma design
+const messageClass = "mt-5 rounded-xl bg-white p-6 text-sm text-slate-600";
+
+// The subjects and modules to choose from come from the server
 export default function CustomModuleForm() {
+  const { state, reload } = useStudentFetch(fetchCustomOptions);
+
+  if (state.status === "loading") {
+    return (
+      <p role="status" className={messageClass}>
+        Loading subjects...
+      </p>
+    );
+  }
+
+  if (state.status !== "ready") {
+    return (
+      <div role="alert" className={`${messageClass} flex flex-wrap items-center gap-3`}>
+        {state.status === "error" ? state.message : "The subjects could not be loaded."}
+        <button
+          suppressHydrationWarning
+          type="button"
+          onClick={reload}
+          className="rounded-full bg-accent px-5 py-2 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  return <FormBody subjects={state.data.subjects} />;
+}
+
+function FormBody({ subjects }: { subjects: PickerSubject[] }) {
   const [count, setCount] = useState(20);
   const [difficulty, setDifficulty] = useState(1);
   const [source, setSource] = useState<Source>("qbank");
@@ -76,77 +104,91 @@ export default function CustomModuleForm() {
     incorrect: true,
     unattempted: true,
   });
-  // Selected subject slug -> titles of its selected modules
-  const [selected, setSelected] = useState<Record<string, string[]>>({
-    anatomy: ["History of Medicine", "Epidemiology"],
-    "community-medicine": ["History of Medicine", "Epidemiology"],
-  });
-  const [tags, setTags] = useState<string[]>(["#Numbers", "#recentNEET", "#Investigation_of_Choice"]);
-  const [mode, setMode] = useState<Mode>("regular");
-  const [readyOpen, setReadyOpen] = useState(false);
+  // Subject id -> ids of its ticked modules
+  const [selected, setSelected] = useState<Record<number, number[]>>({});
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+  // The module the server made, shown in the "ready" pop-up
+  const [ready, setReady] = useState<{ id: number; questionCount: number; matching: number } | null>(null);
 
-  const allModules = (slug: string) => (customSubjectModules[slug] ?? []).map((m) => m.title);
-  const allSelected = dashboardSubjects.every((s) => s.slug in selected);
+  const withModules = subjects.filter((s) => s.modules.length > 0);
+  const selectedCount = Object.keys(selected).length;
+  const allSelected = withModules.length > 0 && withModules.every((s) => s.id in selected);
+  const moduleIds = Object.values(selected).flat();
 
-  function toggleSubject(slug: string) {
+  function toggleSubject(subject: PickerSubject) {
     setSelected((prev) => {
-      if (slug in prev) {
-        return Object.fromEntries(Object.entries(prev).filter(([key]) => key !== slug));
-      }
-      return { ...prev, [slug]: allModules(slug) };
+      if (subject.id in prev) return Object.fromEntries(Object.entries(prev).filter(([key]) => Number(key) !== subject.id));
+      return { ...prev, [subject.id]: subject.modules.map((m) => m.id) };
     });
   }
 
-  function toggleModule(slug: string, title: string) {
+  function toggleModule(subject: PickerSubject, moduleId: number) {
     setSelected((prev) => {
-      const current = prev[slug] ?? [];
-      const next = current.includes(title) ? current.filter((t) => t !== title) : [...current, title];
-      return { ...prev, [slug]: next };
+      const current = prev[subject.id] ?? [];
+      const next = current.includes(moduleId) ? current.filter((id) => id !== moduleId) : [...current, moduleId];
+      // A subject with no module ticked is not chosen any more
+      if (next.length === 0) return Object.fromEntries(Object.entries(prev).filter(([key]) => Number(key) !== subject.id));
+      return { ...prev, [subject.id]: next };
     });
   }
 
   function toggleAll() {
-    setSelected(
-      allSelected ? {} : Object.fromEntries(dashboardSubjects.map((s) => [s.slug, allModules(s.slug)])),
-    );
+    setSelected(allSelected ? {} : Object.fromEntries(withModules.map((s) => [s.id, s.modules.map((m) => m.id)])));
   }
 
-  function toggleTag(tag: string) {
-    setTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  // "Graded Test MCQs" cannot be chosen yet, so the server only ever hears about these three
+  const apiSource: "all" | "qbank" | "bookmarked" = source === "all" || source === "bookmarked" ? source : "qbank";
+
+  async function generate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const token = getToken();
+    if (!token || generating) return;
+    setError("");
+    setGenerating(true);
+    const result = await createCustomModule(token, {
+      count,
+      difficulty: (["easy", "medium", "hard"] as const)[difficulty],
+      source: apiSource,
+      qbank: qbankFilters,
+      moduleIds,
+    });
+    setGenerating(false);
+    if (!result.ok) return setError(result.message);
+    setReady(result.data.module);
   }
 
-  const sourceLabels: Record<Source, string> = {
-    all: "All MCQs",
-    qbank: "QBank MCQs",
-    bookmarked: "Bookmarked MCQs",
-    graded: "Graded Test MCQs",
-  };
-  const subjectNames = dashboardSubjects.filter((s) => s.slug in selected).map((s) => s.name);
+  const sourceLabels: Record<"all" | "qbank" | "bookmarked", string> = { all: "All MCQs", qbank: "QBank MCQs", bookmarked: "Bookmarked MCQs" };
+  const subjectNames = subjects.filter((s) => s.id in selected).map((s) => s.name);
   const chosenFilters = (["attempted", "incorrect", "unattempted"] as const)
     .filter((key) => qbankFilters[key])
     .map((key) => key.charAt(0).toUpperCase() + key.slice(1));
   const readyRows: ReadyRow[] = [
-    { label: "Questions", value: String(count) },
+    {
+      label: "Questions",
+      value: String(ready?.questionCount ?? count),
+      // Fewer questions than asked for: say so
+      detail: ready && ready.questionCount < count ? `you asked for ${count}, only ${ready.matching} match your choices` : undefined,
+    },
     { label: "Difficulty Level", value: DIFFICULTIES[difficulty] },
     {
       label: "Subjects",
-      value: subjectNames.length === 0 ? "None selected" : `${subjectNames.length} Subject${subjectNames.length === 1 ? "" : "s"}`,
-      detail: subjectNames.length > 0 ? subjectNames.join(", ") : undefined,
+      value: `${subjectNames.length} Subject${subjectNames.length === 1 ? "" : "s"}`,
+      detail: subjectNames.join(", "),
     },
     {
       label: "Question Source",
-      value: sourceLabels[source],
+      value: sourceLabels[apiSource],
       detail: source === "qbank" && chosenFilters.length > 0 ? chosenFilters.join(", ") : undefined,
     },
   ];
 
   const radioClass = "h-3.5 w-3.5 accent-accent";
+  const comingSoon = <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Coming soon</span>;
+  const canGenerate = moduleIds.length > 0 && !generating && (source !== "qbank" || chosenFilters.length > 0);
 
   return (
-    <form onSubmit={(e) => {
-        e.preventDefault();
-        setReadyOpen(true);
-      }} className="mt-5 space-y-4">
+    <form onSubmit={(event) => void generate(event)} className="mt-5 space-y-4">
       <SectionCard
         icon={icons.questions}
         title="Number of Questions"
@@ -169,7 +211,7 @@ export default function CustomModuleForm() {
               suppressHydrationWarning
               type="button"
               aria-label="More questions"
-              onClick={() => setCount((c) => c + 1)}
+              onClick={() => setCount((c) => Math.min(MAX_QUESTIONS, c + 1))}
               className={`${stepperButton} border-accent bg-accent text-white`}
             >
               +
@@ -178,7 +220,7 @@ export default function CustomModuleForm() {
         }
       />
 
-      <SectionCard icon={icons.difficulty} title="Difficulty Level" subtitle="Select how many questions you want">
+      <SectionCard icon={icons.difficulty} title="Difficulty Level" subtitle="Questions of this level come first. If there are not enough, the nearest level fills the rest.">
         <div className="mt-4 px-1">
           <input
             suppressHydrationWarning
@@ -232,9 +274,9 @@ export default function CustomModuleForm() {
             <input suppressHydrationWarning type="radio" name="source" checked={source === "bookmarked"} onChange={() => setSource("bookmarked")} className={radioClass} />
             Bookmarked MCQs
           </label>
-          <label className="flex items-center gap-2">
-            <input suppressHydrationWarning type="radio" name="source" checked={source === "graded"} onChange={() => setSource("graded")} className={radioClass} />
-            Graded Test MCQs
+          <label className="flex items-center gap-2 opacity-60">
+            <input suppressHydrationWarning type="radio" name="source" disabled className={radioClass} />
+            Graded Test MCQs {comingSoon}
           </label>
         </fieldset>
       </SectionCard>
@@ -242,84 +284,62 @@ export default function CustomModuleForm() {
       <SectionCard
         icon={icons.subjects}
         title="Select Subjects"
-        subtitle="Choose one or more subjects for your custom module"
+        subtitle="Choose one or more subjects and the modules you want to practise"
         action={
           <div className="flex items-center gap-4 text-xs">
-            <span className="font-medium">{Object.keys(selected).length} Selected</span>
+            <span className="font-medium">{selectedCount} Selected</span>
             <label className="flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5">
-              <input
-                suppressHydrationWarning
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleAll}
-                className="h-3.5 w-3.5 accent-accent"
-              />
+              <input suppressHydrationWarning type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5 accent-accent" />
               Select All
             </label>
           </div>
         }
       >
-        <SubjectPicker selected={selected} onToggleSubject={toggleSubject} onToggleModule={toggleModule} />
+        <SubjectPicker subjects={subjects} selected={selected} onToggleSubject={toggleSubject} onToggleModule={toggleModule} />
       </SectionCard>
 
-      <SectionCard icon={icons.tags} title="Tags" subtitle="Choose the question source">
-        <ul className="mt-3 flex flex-wrap gap-2">
-          {customModuleTags.map((tag) => {
-            const on = tags.includes(tag);
-            return (
-              <li key={tag}>
-                <button
-                  suppressHydrationWarning
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggleTag(tag)}
-                  className={`rounded px-3 py-1.5 text-[11px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                    on ? "bg-accent font-medium text-white" : "bg-accent-soft hover:bg-accent/20"
-                  }`}
-                >
-                  {tag}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </SectionCard>
-
-      <SectionCard icon={icons.mode} title="Mode" subtitle="Choose the question source">
+      <SectionCard icon={icons.mode} title="Mode" subtitle="How the questions are shown while you solve">
         <fieldset className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
           <legend className="sr-only">Mode</legend>
           <label className="flex items-start gap-2">
-            <input suppressHydrationWarning type="radio" name="mode" checked={mode === "regular"} onChange={() => setMode("regular")} className={`${radioClass} mt-0.5`} />
+            <input suppressHydrationWarning type="radio" name="mode" checked readOnly className={`${radioClass} mt-0.5`} />
             <span>
               <span className="block font-medium">Regular</span>
               <span className="block text-[11px] text-slate-600">See answer and explanation after solving each MCQ</span>
             </span>
           </label>
-          <label className="flex items-start gap-2">
-            <input suppressHydrationWarning type="radio" name="mode" checked={mode === "exam"} onChange={() => setMode("exam")} className={`${radioClass} mt-0.5`} />
+          <label className="flex items-start gap-2 opacity-60">
+            <input suppressHydrationWarning type="radio" name="mode" disabled className={`${radioClass} mt-0.5`} />
             <span>
-              <span className="block font-medium">Exam Mode</span>
+              <span className="block font-medium">Exam Mode {comingSoon}</span>
               <span className="block text-[11px] text-slate-600">Review answers only after completing the module</span>
             </span>
           </label>
         </fieldset>
       </SectionCard>
 
+      <div role="status" aria-live="polite">
+        {error ? <p className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700">{error}</p> : null}
+        {!error && moduleIds.length === 0 ? <p className="text-xs text-slate-600">Choose at least one subject to generate a module.</p> : null}
+      </div>
+
       <div className="flex justify-end pb-2">
         <button
           suppressHydrationWarning
           type="submit"
-          className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          disabled={!canGenerate}
+          className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-xs font-semibold text-white hover:bg-accent-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Generate Module
+          {generating ? "Generating..." : "Generate Module"}
           <ArrowRightIcon className="h-4 w-4" />
         </button>
       </div>
+
       <ModuleReadyDialog
-        open={readyOpen}
-        onClose={() => setReadyOpen(false)}
+        open={ready !== null}
+        onClose={() => setReady(null)}
         rows={readyRows}
-        startHref={`/dashboard/custom-module/solve?count=${count}`}
+        startHref={ready ? `/dashboard/custom-module/solve?id=${ready.id}` : "/dashboard/custom-module"}
       />
     </form>
   );

@@ -89,6 +89,8 @@ CREATE TABLE IF NOT EXISTS tests (
     id                 INT UNSIGNED NOT NULL AUTO_INCREMENT,
     title              VARCHAR(200) NOT NULL,
     description        VARCHAR(1000) NOT NULL DEFAULT '',
+    kind               ENUM('grand','mini','subject') NOT NULL DEFAULT 'grand',
+    pattern            ENUM('NEET','INICET') NOT NULL DEFAULT 'NEET',
     duration_minutes   SMALLINT UNSIGNED NOT NULL,
     marks_per_question DECIMAL(6,2) NOT NULL,
     negative_marking   DECIMAL(6,2) NOT NULL DEFAULT 0,
@@ -192,6 +194,64 @@ CREATE TABLE IF NOT EXISTS student_answers (
     KEY idx_student_answers_question (question_id),
     CONSTRAINT fk_student_answers_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
     CONSTRAINT fk_student_answers_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS student_bookmarks (
+    student_id  INT UNSIGNED NOT NULL,
+    question_id INT UNSIGNED NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (student_id, question_id),
+    KEY idx_student_bookmarks_question (question_id),
+    CONSTRAINT fk_student_bookmarks_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+    CONSTRAINT fk_student_bookmarks_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS custom_modules (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    student_id INT UNSIGNED NOT NULL,
+    title      VARCHAR(150) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_custom_modules_student (student_id, id),
+    CONSTRAINT fk_custom_modules_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS custom_module_questions (
+    module_id   INT UNSIGNED NOT NULL,
+    question_id INT UNSIGNED NOT NULL,
+    position    SMALLINT UNSIGNED NOT NULL,
+    PRIMARY KEY (module_id, question_id),
+    KEY idx_custom_module_questions_order (module_id, position),
+    CONSTRAINT fk_custom_module_questions_module FOREIGN KEY (module_id) REFERENCES custom_modules (id) ON DELETE CASCADE,
+    CONSTRAINT fk_custom_module_questions_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS test_attempts (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    test_id      INT UNSIGNED NOT NULL,
+    student_id   INT UNSIGNED NOT NULL,
+    started_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    submitted_at DATETIME NULL,
+    correct      SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    incorrect    SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    unattempted  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    score        DECIMAL(8,2) NOT NULL DEFAULT 0,
+    total_marks  DECIMAL(8,2) NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_attempt_student_test (student_id, test_id),
+    KEY idx_attempt_test_score (test_id, score),
+    CONSTRAINT fk_attempt_test FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE,
+    CONSTRAINT fk_attempt_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS test_attempt_answers (
+    attempt_id  INT UNSIGNED NOT NULL,
+    question_id INT UNSIGNED NOT NULL,
+    selected    VARCHAR(7) NOT NULL DEFAULT '',
+    marked      TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (attempt_id, question_id),
+    CONSTRAINT fk_attempt_answers_attempt FOREIGN KEY (attempt_id) REFERENCES test_attempts (id) ON DELETE CASCADE,
+    CONSTRAINT fk_attempt_answers_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Starter subjects

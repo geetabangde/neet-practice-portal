@@ -68,17 +68,6 @@ export type SubjectQuestion = {
   correctIndex?: number;
 };
 
-export type BookmarkItem = {
-  title: string;
-  // Matches a DashboardSubject slug; the subject name and icon come from there
-  subjectSlug: string;
-  // Used in the URL: /dashboard/bookmarks/<slug>
-  slug: string;
-  mcqs: number;
-  // Tailwind text colour for the small subject label
-  labelClass: string;
-};
-
 export type PlanOption = {
   months: number;
   price: number;
@@ -99,22 +88,6 @@ export type Plan = {
   popular?: boolean;
 };
 
-export type TestKind = "grand" | "mini" | "subject";
-
-export type TestItem = {
-  title: string;
-  // Exam day as YYYY-MM-DD
-  date: string;
-  mcqs: number;
-  minutes: number;
-  pattern: "INICET" | "NEET";
-  // Locked tests show the "GET" badge
-  locked?: boolean;
-  // Free practice tests show the "Mock Test" tag
-  mock?: boolean;
-};
-
-// Text with some words in bold, e.g. [{ text: "Note: ", bold: true }, { text: "..." }]
 export type RichText = string | { text: string; bold?: boolean }[];
 
 export type InstructionItem = {

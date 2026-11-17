@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { TestWizard } from "@/components/tests/test-wizard";
+import { TestForm } from "@/components/tests/test-form";
 
 export const metadata: Metadata = {
   title: "Create test",
 };
 
 export default function NewTestPage() {
-  return <TestWizard />;
+  return <TestForm />;
 }

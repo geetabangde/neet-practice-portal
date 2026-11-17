@@ -3,10 +3,13 @@
 import "dotenv/config";
 import { pool } from "../config/db";
 import { CREATE_SUBJECTS_TABLE } from "../services/subject.service";
+import { CREATE_BOOKMARKS_TABLE } from "../services/bookmark.service";
+import { CREATE_CUSTOM_MODULE_TABLES } from "../services/custom-module.service";
 import { CREATE_MODULES_TABLE, migrateTopicsToModules } from "../services/module.service";
 import { CREATE_PLAN_TABLES } from "../services/plan.service";
 import { CREATE_QUESTIONS_TABLE } from "../services/question.service";
-import { CREATE_TEST_TABLES } from "../services/test.service";
+import { CREATE_ATTEMPT_TABLES } from "../services/test-attempt.service";
+import { CREATE_TEST_TABLES, migrateTestKind } from "../services/test.service";
 import { CREATE_ANSWERS_TABLE } from "../services/student-practice.service";
 import { CREATE_STUDENT_TABLES } from "../services/student.service";
 import { CREATE_TOPICS_TABLE } from "../services/topic.service";
@@ -20,8 +23,12 @@ async function main(): Promise<void> {
   for (const statement of CREATE_PLAN_TABLES) await pool.query(statement);
   for (const statement of CREATE_STUDENT_TABLES) await pool.query(statement);
   await pool.query(CREATE_ANSWERS_TABLE);
+  await pool.query(CREATE_BOOKMARKS_TABLE);
+  for (const statement of CREATE_CUSTOM_MODULE_TABLES) await pool.query(statement);
+  for (const statement of CREATE_ATTEMPT_TABLES) await pool.query(statement);
   // An older database has topics without modules: this moves them into a module called "General"
   const moved = await migrateTopicsToModules();
+  await migrateTestKind();
   console.log(`Tables ready: subjects, modules, topics, questions, tests, plans, students (topics to modules: ${moved})`);
 }
 

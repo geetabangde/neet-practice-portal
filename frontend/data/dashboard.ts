@@ -1,5 +1,4 @@
 import type {
-  BookmarkItem,
   DashboardNavItem,
   DashboardPromo,
   DashboardSubject,
@@ -8,9 +7,6 @@ import type {
   SubjectModule,
   SubjectQuestion,
   SubjectTopic,
-  TestItem,
-  TestKind,
-  TestQuestionStatus,
 } from "@/types/dashboard";
 
 // Placeholder data copied from the Figma design. There is no backend yet, so
@@ -99,22 +95,6 @@ export const moduleQuestions: Record<string, SubjectQuestion[]> = {
   ],
 };
 
-// Newest first. Placeholder entries copied from the design.
-export const bookmarks: BookmarkItem[] = [
-  { title: "Chemistry of Carbohydrates, Amino sugars and Mucopolysaccharides", subjectSlug: "biochemistry", slug: "chemistry-of-carbohydrates", mcqs: 10, labelClass: "text-accent" },
-  { title: "Homeostasis and cellular physiology", subjectSlug: "physiology", slug: "homeostasis-and-cellular-physiology", mcqs: 10, labelClass: "text-[#8b7cf6]" },
-  { title: "ANS Introduction & Parasympathomimetics", subjectSlug: "pharmacology", slug: "ans-introduction", mcqs: 10, labelClass: "text-[#e879f9]" },
-  { title: "History of Medicine", subjectSlug: "community-medicine", slug: "history-of-medicine", mcqs: 10, labelClass: "text-[#34d399]" },
-  { title: "Embryonic Phase of Development", subjectSlug: "anatomy", slug: "embryonic-phase-of-development", mcqs: 10, labelClass: "text-[#f87171]" },
-];
-
-// Bookmarked questions, keyed by bookmark slug. Only the question from the design exists so far.
-export const bookmarkQuestions: Record<string, SubjectQuestion[]> = {
-  "chemistry-of-carbohydrates": [
-    { ...moduleQuestions["biochemistry/glycolysis-and-gluconeogenesis"][0], image: undefined },
-  ],
-};
-
 // Plans and prices for NEET PG & FMGE
 export const plans: Plan[] = [
   {
@@ -181,58 +161,10 @@ export const plans: Plan[] = [
   },
 ];
 
-// ---- Create a Custom Module (placeholder options copied from the design) ----
-
-// The subject picker has two columns; these are the slugs in each, top to bottom
-export const customModuleColumns: string[][] = [
-  ["anatomy", "microbiology", "ophthalmology", "pharmacology", "pathology"],
-  ["physiology", "community-medicine", "anaesthesia", "biochemistry", "psychiatry"],
-];
-
-// Modules you can pick inside a subject. Only two subjects have them in the design.
-export const customSubjectModules: Record<string, { title: string; count: number }[]> = {
-  anatomy: [
-    { title: "History of Medicine", count: 1 },
-    { title: "Concept of Health and Disease", count: 1 },
-    { title: "Epidemiology", count: 1 },
-  ],
-  "community-medicine": [
-    { title: "History of Medicine", count: 1 },
-    { title: "Concept of Health and Disease", count: 1 },
-    { title: "Epidemiology", count: 1 },
-  ],
-};
-
-export const customModuleTags = [
-  "#AIIMS", "#Numbers", "#TheCommons", "#Problems", "#ImageBased", "#RecentUpdates",
-  "#Controversial", "#recentNEET", "#Investigation_of_Choice", "#Eponyms", "#Drug Of Choice",
-  "#Criteria", "#Instruments", "#Slides", "#Clinical", "#GIFBased",
-];
-
 // Questions for a custom module. Only the question from the design exists so far.
 export const customModuleQuestions: SubjectQuestion[] = [
   moduleQuestions["biochemistry/glycolysis-and-gluconeogenesis"][0],
 ];
 
-// Placeholder tests copied from the design. Only the Grand Tests that are fully visible there are listed.
+// Year shown on the (still static) test instructions page
 export const testSeriesYear = "2025 - 26";
-
-export const testSeries: Record<TestKind, TestItem[]> = {
-  grand: [
-    { title: "Grand Test 1 - INICET Pattern", date: "2025-09-08", mcqs: 200, minutes: 180, pattern: "INICET", locked: true },
-    { title: "Grand Test 2 - NEET Pattern", date: "2025-09-22", mcqs: 200, minutes: 180, pattern: "NEET", mock: true },
-    { title: "Grand Test 3 - INICET Pattern", date: "2025-10-06", mcqs: 200, minutes: 180, pattern: "INICET", locked: true },
-    { title: "National INI-CET Mock 2025 Nov Session", date: "2025-10-22", mcqs: 200, minutes: 180, pattern: "INICET", locked: true },
-    { title: "Grand Test 4 - NEET Pattern", date: "2025-10-27", mcqs: 200, minutes: 180, pattern: "NEET", mock: true },
-  ],
-  mini: [],
-  subject: [],
-};
-
-// The test attempt screen. Only the question from the design exists so far.
-export const testAttemptTotal = 25;
-export const testAttemptQuestions: SubjectQuestion[] = customModuleQuestions;
-
-// Sample progress shown when the test screen opens, copied from the design
-// (question 1 answered, 2 marked, 3-5 not answered, and so on). Retake clears it.
-export const testAttemptSampleStatuses: TestQuestionStatus[] = ["answered","marked","notAnswered","notAnswered","notAnswered","notVisited","notVisited","notVisited","answered","answered","answered","marked","notVisited","notVisited","answered","answered","answered","answeredMarked","answeredMarked","answered","marked","notAnswered","notAnswered","notAnswered","notAnswered"];

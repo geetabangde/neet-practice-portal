@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import CustomModuleSolve from "@/components/dashboard/CustomModuleSolve";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import QuestionView from "@/components/dashboard/QuestionView";
-import { customModuleQuestions } from "@/data/dashboard";
 
 export const metadata: Metadata = {
   title: "Custom Module | HN QBank",
@@ -11,16 +10,25 @@ export const metadata: Metadata = {
 };
 
 type SolvePageProps = {
-  searchParams: Promise<{ count?: string | string[] }>;
+  searchParams: Promise<{ id?: string | string[] }>;
 };
 
-// Reads ?count= from the URL (set by "Start Module"), so it sits inside Suspense
+// Reads ?id= from the address (set by "Start Module"), so it sits inside Suspense
 async function Solve({ searchParams }: SolvePageProps) {
-  const { count } = await searchParams;
-  const parsed = Number(Array.isArray(count) ? count[0] : count);
-  const total = Number.isInteger(parsed) && parsed >= 1 ? Math.min(parsed, 200) : 20;
+  const { id } = await searchParams;
+  const moduleId = Array.isArray(id) ? id[0] : id;
 
-  return <QuestionView subjectName="Custom Module" total={total} questions={customModuleQuestions} />;
+  if (!moduleId) {
+    return (
+      <p className="rounded-xl bg-white p-6 text-sm text-slate-600">
+        No custom module was chosen.{" "}
+        <Link href="/dashboard/custom-module" className="font-semibold text-accent-dark hover:underline">
+          Create one
+        </Link>
+      </p>
+    );
+  }
+  return <CustomModuleSolve id={moduleId} />;
 }
 
 export default function CustomModuleSolvePage({ searchParams }: SolvePageProps) {

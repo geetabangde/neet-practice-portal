@@ -98,11 +98,16 @@ export interface Question {
 // ---- Tests and results ----------------------------------------------------------------
 
 export type TestStatus = "draft" | "published" | "completed";
+// Where a test shows in the student Test Series
+export type TestKind = "grand" | "mini" | "subject";
+export type TestPattern = "NEET" | "INICET";
 
 export interface MockTest {
   id: string;
   title: string;
   description: string;
+  kind: TestKind;
+  pattern: TestPattern;
   subjectIds: string[];
   topicIds: string[];
   questionIds: string[];

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import type { AnswerFeedback, Letter, PracticeQuestion } from "@/lib/studentContent";
-import { ArrowLeftIcon, ArrowRightIcon, ClockIcon } from "./icons";
+import { ArrowLeftIcon, ArrowRightIcon, BookmarkIcon, ClockIcon } from "./icons";
 import TestResult from "./TestResult";
 import Timer from "./Timer";
+import type { ToggleBookmark } from "./useToggleBookmark";
 
 const LETTERS: Letter[] = ["A", "B", "C", "D"];
 
@@ -18,6 +19,8 @@ type PracticeViewProps = {
   questions: PracticeQuestion[];
   // Sends the answer to the server, which marks it and saves it
   submit: SubmitAnswer;
+  // Saves or removes the bookmark of a question. Leave it out to show no bookmark button.
+  toggleBookmark?: ToggleBookmark;
 };
 
 const roundButtonClass =
@@ -26,7 +29,7 @@ const roundButtonClass =
 // Practice: one question at a time. A single-answer question is marked the moment an option is picked.
 // A multiple-answer question lets the student pick several options and then press "Check answer".
 // The right answer and the explanation come from the server only after the answer was sent.
-export default function PracticeView({ title, questions, submit }: PracticeViewProps) {
+export default function PracticeView({ title, questions, submit, toggleBookmark }: PracticeViewProps) {
   const [index, setIndex] = useState(0);
   // Options picked but not sent yet (multiple-answer questions), by question id
   const [draft, setDraft] = useState<Record<number, Letter[]>>({});
@@ -34,6 +37,9 @@ export default function PracticeView({ title, questions, submit }: PracticeViewP
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
+  // Which questions are bookmarked: what the server said at the start, then what the student changes
+  const [bookmarked, setBookmarked] = useState<Record<number, boolean>>(() => Object.fromEntries(questions.map((q) => [q.id, q.bookmarked])));
+  const [marking, setMarking] = useState(false);
 
   const question = questions[index];
   const result = answered[question.id];
@@ -65,6 +71,18 @@ export default function PracticeView({ title, questions, submit }: PracticeViewP
       const now = prev[question.id] ?? [];
       return { ...prev, [question.id]: now.includes(letter) ? now.filter((l) => l !== letter) : [...now, letter].sort() };
     });
+  }
+
+  // The button changes only after the server has saved the change
+  async function flipBookmark() {
+    if (!toggleBookmark || marking) return;
+    const next = !bookmarked[question.id];
+    setMarking(true);
+    setError(null);
+    const outcome = await toggleBookmark(question.id, next);
+    setMarking(false);
+    if (!outcome.ok) return setError(outcome.message);
+    setBookmarked((prev) => ({ ...prev, [question.id]: next }));
   }
 
   function goTo(next: number) {
@@ -108,6 +126,22 @@ export default function PracticeView({ title, questions, submit }: PracticeViewP
           <ClockIcon className="h-4 w-4" />
           <Timer key={index} />
         </div>
+
+        {toggleBookmark ? (
+          <button
+            suppressHydrationWarning
+            type="button"
+            aria-label={bookmarked[question.id] ? "Remove bookmark" : "Bookmark this question"}
+            aria-pressed={bookmarked[question.id] === true}
+            disabled={marking}
+            onClick={() => void flipBookmark()}
+            className={`flex h-10 w-10 items-center justify-center rounded-full border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 ${
+              bookmarked[question.id] ? "border-accent bg-accent text-white" : "border-slate-200 bg-white hover:bg-slate-50"
+            }`}
+          >
+            <BookmarkIcon className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
 
       <section aria-labelledby="practice-question" className="mt-4 rounded-xl bg-white p-3 sm:p-4">

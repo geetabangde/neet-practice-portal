@@ -14,6 +14,8 @@ export interface PracticeQuestion {
   text: string;
   type: QuestionType;
   options: Record<OptionKey, string>;
+  // Has this student bookmarked the question?
+  bookmarked: boolean;
 }
 
 export interface PracticeTopic {
@@ -68,6 +70,7 @@ interface QuestionRow extends RowDataPacket {
   correct: string;
   explanation: string;
   reference: string;
+  bookmarked: number;
 }
 
 export async function getPracticeTopic(topicId: number): Promise<PracticeTopic | null> {
@@ -81,15 +84,17 @@ export async function getPracticeTopic(topicId: number): Promise<PracticeTopic |
   return row ? { id: row.id, name: row.name, moduleName: row.moduleName, subjectName: row.subjectName, subjectSlug: slugify(row.subjectName) } : null;
 }
 
-export async function listPracticeQuestions(topicId: number): Promise<PracticeQuestion[]> {
+export async function listPracticeQuestions(topicId: number, studentId: number): Promise<PracticeQuestion[]> {
   const [rows] = await pool.query<QuestionRow[]>(
-    `SELECT q.id, q.question_text AS text, q.type, q.option_a AS a, q.option_b AS b, q.option_c AS c, q.option_d AS d
+    `SELECT q.id, q.question_text AS text, q.type, q.option_a AS a, q.option_b AS b, q.option_c AS c, q.option_d AS d,
+       (b.question_id IS NOT NULL) AS bookmarked
      FROM questions q JOIN topics t ON t.id = q.topic_id JOIN modules m ON m.id = t.module_id JOIN subjects s ON s.id = t.subject_id
+     LEFT JOIN student_bookmarks b ON b.question_id = q.id AND b.student_id = ?
      WHERE q.topic_id = ? AND q.status = 'published' AND ${ACTIVE_CHAIN}
      ORDER BY q.id ASC LIMIT 200`,
-    [topicId],
+    [studentId, topicId],
   );
-  return rows.map((row) => ({ id: row.id, text: row.text, type: row.type, options: { A: row.a, B: row.b, C: row.c, D: row.d } }));
+  return rows.map((row) => ({ id: row.id, text: row.text, type: row.type, options: { A: row.a, B: row.b, C: row.c, D: row.d }, bookmarked: row.bookmarked === 1 }));
 }
 
 // The facts needed to mark an answer. null when the question is missing, not published, or switched off.

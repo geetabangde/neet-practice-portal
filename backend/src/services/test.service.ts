@@ -2,11 +2,16 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/prom
 import { pool } from "../config/db";
 
 export type TestStatus = "draft" | "published" | "completed";
+export type TestKind = "grand" | "mini" | "subject";
+export type TestPattern = "NEET" | "INICET";
 
 export interface MockTest {
   id: number;
   title: string;
   description: string;
+  // Where the test shows in the student Test Series: Grand, Mini or Subject tests, in the NEET or INICET pattern
+  kind: TestKind;
+  pattern: TestPattern;
   subjectIds: number[];
   topicIds: number[];
   questionIds: number[];
@@ -27,6 +32,8 @@ interface TestRow extends RowDataPacket {
   id: number;
   title: string;
   description: string;
+  kind: TestKind;
+  pattern: TestPattern;
   durationMinutes: number;
   marksPerQuestion: string;
   negativeMarking: string;
@@ -40,7 +47,7 @@ interface LinkRow extends RowDataPacket {
   itemId: number;
 }
 
-const COLUMNS = `id, title, description, duration_minutes AS durationMinutes, marks_per_question AS marksPerQuestion,
+const COLUMNS = `id, title, description, kind, pattern, duration_minutes AS durationMinutes, marks_per_question AS marksPerQuestion,
   negative_marking AS negativeMarking, DATE_FORMAT(start_at, '%Y-%m-%dT%H:%i') AS startAt,
   DATE_FORMAT(end_at, '%Y-%m-%dT%H:%i') AS endAt, status`;
 
@@ -51,6 +58,8 @@ export const CREATE_TEST_TABLES = [
     id                 INT UNSIGNED NOT NULL AUTO_INCREMENT,
     title              VARCHAR(200) NOT NULL,
     description        VARCHAR(1000) NOT NULL DEFAULT '',
+    kind               ENUM('grand','mini','subject') NOT NULL DEFAULT 'grand',
+    pattern            ENUM('NEET','INICET') NOT NULL DEFAULT 'NEET',
     duration_minutes   SMALLINT UNSIGNED NOT NULL,
     marks_per_question DECIMAL(6,2) NOT NULL,
     negative_marking   DECIMAL(6,2) NOT NULL DEFAULT 0,
@@ -118,6 +127,8 @@ async function assemble(rows: TestRow[]): Promise<MockTest[]> {
     id: row.id,
     title: row.title,
     description: row.description,
+    kind: row.kind,
+    pattern: row.pattern,
     subjectIds: subjects.get(row.id) ?? [],
     topicIds: topics.get(row.id) ?? [],
     questionIds: questions.get(row.id) ?? [],
@@ -178,11 +189,13 @@ async function inTransaction<T>(work: (connection: PoolConnection) => Promise<T>
 export async function createTest(input: MockTestInput): Promise<MockTest> {
   const id = await inTransaction(async (connection) => {
     const [result] = await connection.query<ResultSetHeader>(
-      `INSERT INTO tests (title, description, duration_minutes, marks_per_question, negative_marking, start_at, end_at, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tests (title, description, kind, pattern, duration_minutes, marks_per_question, negative_marking, start_at, end_at, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.title,
         input.description,
+        input.kind,
+        input.pattern,
         input.durationMinutes,
         input.marksPerQuestion,
         input.negativeMarking,
@@ -203,11 +216,13 @@ export async function createTest(input: MockTestInput): Promise<MockTest> {
 export async function replaceTest(id: number, input: MockTestInput): Promise<boolean> {
   return inTransaction(async (connection) => {
     const [result] = await connection.query<ResultSetHeader>(
-      `UPDATE tests SET title = ?, description = ?, duration_minutes = ?, marks_per_question = ?, negative_marking = ?,
+      `UPDATE tests SET title = ?, description = ?, kind = ?, pattern = ?, duration_minutes = ?, marks_per_question = ?, negative_marking = ?,
          start_at = ?, end_at = ?, status = ? WHERE id = ?`,
       [
         input.title,
         input.description,
+        input.kind,
+        input.pattern,
         input.durationMinutes,
         input.marksPerQuestion,
         input.negativeMarking,
@@ -232,14 +247,21 @@ export async function deleteTest(id: number): Promise<boolean> {
   return result.affectedRows === 1;
 }
 
-// Each topic's subject, so the controller can check topics sit inside the chosen subjects
-export async function subjectsOfTopics(topicIds: number[]): Promise<Map<number, number>> {
-  if (topicIds.length === 0) return new Map();
-  const [rows] = await pool.query<(RowDataPacket & { id: number; subjectId: number })[]>(
-    "SELECT id, subject_id AS subjectId FROM topics WHERE id IN (?)",
-    [topicIds],
+// The subjects and topics of a set of questions, and how many of the questions exist. A test does not choose its
+// subjects and topics: they are whatever its questions belong to (a draft question without a topic adds none).
+export async function scopeOfQuestions(questionIds: number[]): Promise<{ found: number; subjectIds: number[]; topicIds: number[] }> {
+  if (questionIds.length === 0) return { found: 0, subjectIds: [], topicIds: [] };
+  const [rows] = await pool.query<(RowDataPacket & { id: number; subjectId: number | null; topicId: number | null })[]>(
+    "SELECT id, subject_id AS subjectId, topic_id AS topicId FROM questions WHERE id IN (?)",
+    [questionIds],
   );
-  return new Map(rows.map((row) => [row.id, row.subjectId]));
+  const subjects = new Set<number>();
+  const topics = new Set<number>();
+  for (const row of rows) {
+    if (row.subjectId !== null) subjects.add(row.subjectId);
+    if (row.topicId !== null) topics.add(row.topicId);
+  }
+  return { found: rows.length, subjectIds: [...subjects].sort((a, b) => a - b), topicIds: [...topics].sort((a, b) => a - b) };
 }
 
 // How many of these questions are published
@@ -250,4 +272,41 @@ export async function countPublishedQuestions(questionIds: number[]): Promise<nu
     [questionIds],
   );
   return Number(rows[0]?.total ?? 0);
+}
+
+// An older database has tests without kind and pattern: this adds the two columns (every old test becomes a Grand test, NEET pattern)
+export async function migrateTestKind(): Promise<boolean> {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tests' AND COLUMN_NAME = 'kind'",
+  );
+  if (rows.length > 0) return false;
+  await pool.query("ALTER TABLE tests ADD COLUMN kind ENUM('grand','mini','subject') NOT NULL DEFAULT 'grand' AFTER description");
+  await pool.query("ALTER TABLE tests ADD COLUMN pattern ENUM('NEET','INICET') NOT NULL DEFAULT 'NEET' AFTER kind");
+  return true;
+}
+
+// What a student sees in the Test Series
+export interface StudentTest {
+  id: number;
+  title: string;
+  kind: TestKind;
+  pattern: TestPattern;
+  // YYYY-MM-DDTHH:mm
+  startAt: string;
+  endAt: string;
+  questionCount: number;
+  durationMinutes: number;
+  status: "published" | "completed";
+}
+
+// Published and completed tests that have questions. Drafts are never shown to students.
+export async function listStudentTests(): Promise<StudentTest[]> {
+  const [rows] = await pool.query<(RowDataPacket & StudentTest)[]>(
+    `SELECT t.id, t.title, t.kind, t.pattern, DATE_FORMAT(t.start_at, '%Y-%m-%dT%H:%i') AS startAt,
+            DATE_FORMAT(t.end_at, '%Y-%m-%dT%H:%i') AS endAt, t.duration_minutes AS durationMinutes, t.status,
+            (SELECT COUNT(*) FROM test_questions q WHERE q.test_id = t.id) AS questionCount
+       FROM tests t WHERE t.status IN ('published', 'completed')
+      HAVING questionCount > 0 ORDER BY t.start_at ASC, t.id ASC`,
+  );
+  return rows.map((row) => ({ ...row, questionCount: Number(row.questionCount) }));
 }

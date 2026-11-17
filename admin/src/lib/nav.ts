@@ -96,7 +96,9 @@ export function breadcrumbsFor(pathname: string): Crumb[] {
       crumbs.push({ label: newLabel[root.href] ?? "New" });
     } else if (segment === "edit") {
       crumbs.push({ label: editLabel[root.href] ?? "Edit" });
-    } else if (rest[index + 1] === "edit") {
+    } else if (segment === "questions" && root.href === "/tests") {
+      crumbs.push({ label: "Questions" });
+    } else if (rest[index + 1] === "edit" || (rest[index + 1] === "questions" && root.href === "/tests")) {
       // An id in front of "edit" is not shown; the "edit" crumb says it all
     } else {
       crumbs.push({ label: detailLabel[root.href] ?? "Details", href });

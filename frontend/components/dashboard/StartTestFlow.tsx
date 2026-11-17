@@ -7,6 +7,8 @@ import InstructionAccordion from "./InstructionAccordion";
 import { useModalDialog } from "./useModalDialog";
 
 type StartTestFlowProps = {
+  // The test that starts when the student presses Yes
+  testId: string;
   // The numbered "other instructions", rendered on the server
   instructions: ReactNode;
   ndaTitle: string;
@@ -24,7 +26,7 @@ type Popup = "info" | "confirm" | null;
 
 // "Other Important Instructions" with the agreement checkbox, the
 // "I am ready to begin" button and its two pop-ups
-export default function StartTestFlow({ instructions, ndaTitle, ndaParagraphs }: StartTestFlowProps) {
+export default function StartTestFlow({ testId, instructions, ndaTitle, ndaParagraphs }: StartTestFlowProps) {
   // Starts unticked: the first click on "I am ready to begin" asks for the agreement
   const [accepted, setAccepted] = useState(false);
   const checkboxRef = useRef<HTMLInputElement>(null);
@@ -145,7 +147,7 @@ export default function StartTestFlow({ instructions, ndaTitle, ndaParagraphs }:
               No
             </button>
             <Link
-              href="/dashboard/test-series/attempt"
+              href={`/dashboard/test-series/attempt?id=${encodeURIComponent(testId)}`}
               onClick={close}
               className={`${primaryButtonClass} block text-center`}
             >

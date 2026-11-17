@@ -41,6 +41,18 @@ export function apiPost<T>(path: string, body: unknown, token?: string): Promise
   });
 }
 
+export function apiPut<T>(path: string, token: string, body?: unknown): Promise<ApiResult<T>> {
+  return request<T>(path, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+}
+
+export function apiDelete<T>(path: string, token: string): Promise<ApiResult<T>> {
+  return request<T>(path, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+}
+
 export function apiGet<T>(path: string, token: string): Promise<ApiResult<T>> {
   return request<T>(path, { headers: { Authorization: `Bearer ${token}` } });
 }

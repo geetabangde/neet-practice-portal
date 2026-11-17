@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import BookmarkList from "@/components/dashboard/BookmarkList";
+import BookmarksView from "@/components/dashboard/BookmarksView";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import { bookmarks } from "@/data/dashboard";
 
 export const metadata: Metadata = {
   title: "Bookmarks | HN QBank",
@@ -24,7 +23,7 @@ export default function BookmarksPage() {
         </ol>
       </nav>
 
-      <BookmarkList bookmarks={bookmarks} />
+      <BookmarksView />
     </DashboardShell>
   );
 }

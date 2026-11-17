@@ -254,6 +254,8 @@ async function add(): Promise<void> {
     await createTest({
       title: test.title,
       description: "Sample test for trying out the student site.",
+      kind: test.title.includes("Subject Test") ? "subject" : test.title.includes("Mini") ? "mini" : "grand",
+      pattern: "NEET",
       subjectIds: idsOf(names),
       topicIds: topicsOf(names),
       questionIds: pick(names, test.perSubject),

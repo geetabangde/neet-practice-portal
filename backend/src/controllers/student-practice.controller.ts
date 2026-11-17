@@ -27,7 +27,7 @@ export async function getTopicQuestionsHandler(req: Request, res: Response): Pro
       res.status(404).json({ success: false, message: "Topic not found" });
       return;
     }
-    res.json({ success: true, message: "Questions", data: { topic, questions: await listPracticeQuestions(topic.id) } });
+    res.json({ success: true, message: "Questions", data: { topic, questions: await listPracticeQuestions(topic.id, (res.locals.student as { id: number }).id) } });
   } catch (error) {
     console.error("Get topic questions failed:", error);
     res.status(500).json(FAILED);

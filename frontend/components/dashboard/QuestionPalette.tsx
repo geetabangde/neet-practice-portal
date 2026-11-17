@@ -38,15 +38,18 @@ type QuestionPaletteProps = {
   availableCount: number;
   current: number;
   onSelect: (index: number) => void;
+  // Leave the colour legend out (the review screen has its own meaning for the colours)
+  hideLegend?: boolean;
 };
 
-export default function QuestionPalette({ statuses, availableCount, current, onSelect }: QuestionPaletteProps) {
+export default function QuestionPalette({ statuses, availableCount, current, onSelect, hideLegend = false }: QuestionPaletteProps) {
   return (
     <aside aria-labelledby="palette-title" className="rounded-xl bg-white p-4">
       <h2 id="palette-title" className="text-2xl font-semibold">
         Choose a Question
       </h2>
 
+      {hideLegend ? null : (
       <ul className="mt-4 flex flex-wrap gap-2">
         {legendOrder.map((status) => (
           <li
@@ -66,6 +69,7 @@ export default function QuestionPalette({ statuses, availableCount, current, onS
           </li>
         ))}
       </ul>
+      )}
 
       <ol className="mt-6 grid grid-cols-5 gap-3">
         {statuses.map((status, i) => {

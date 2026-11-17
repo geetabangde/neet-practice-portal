@@ -6,7 +6,7 @@ import { useAdminStore } from "@/components/providers/admin-store-provider";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { TestWizard } from "./test-wizard";
+import { TestForm } from "./test-form";
 
 export function TestEditor({ id }: { id: string }) {
   const { tests, contentStatus, reloadContent } = useAdminStore();
@@ -51,5 +51,5 @@ export function TestEditor({ id }: { id: string }) {
     );
   }
 
-  return <TestWizard key={test.id} test={test} />;
+  return <TestForm key={test.id} test={test} />;
 }

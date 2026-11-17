@@ -23,6 +23,8 @@ function makeTest(seed: TestSeed): MockTest {
     description: seed.description,
     subjectIds: unique(seed.questions.map((q) => q.subjectId)),
     topicIds: unique(seed.questions.map((q) => q.topicId)),
+    kind: "grand",
+    pattern: "NEET",
     questionIds: seed.questions.map((q) => q.id),
     durationMinutes: seed.questions.length * 2,
     marksPerQuestion: 4,
