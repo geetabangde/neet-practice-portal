@@ -34,8 +34,10 @@ function TopicForm({
 
   const [moduleId, setModuleId] = useState(startModuleId);
   const [name, setName] = useState(topic?.name ?? "");
+  const [durationMinutes, setDurationMinutes] = useState(String(topic?.durationMinutes ?? 15));
   const [status, setStatus] = useState<ActiveStatus>(topic?.status ?? "active");
   const [nameError, setNameError] = useState<string>();
+  const [durationError, setDurationError] = useState<string>();
   const [formError, setFormError] = useState<string>();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -43,9 +45,14 @@ function TopicForm({
     const trimmed = name.trim();
     if (!trimmed) return setNameError("Enter the topic name.");
 
+    const minutes = Number(durationMinutes);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+      return setDurationError("Enter duration in whole minutes (1 to 1440).");
+    }
+
     setFormError(undefined);
     onSavingChange(true);
-    const fields = { moduleId, name: trimmed, status };
+    const fields = { moduleId, name: trimmed, durationMinutes: minutes, status };
     const result = topic ? await updateTopic(topic.id, fields) : await createTopic(fields);
     onSavingChange(false);
 
@@ -84,6 +91,20 @@ function TopicForm({
         }}
         error={nameError}
         placeholder="e.g. Upper Limb"
+      />
+      <TextField
+        label="Duration (minutes)"
+        required
+        type="number"
+        min={1}
+        max={1440}
+        value={durationMinutes}
+        onChange={(e) => {
+          setDurationMinutes(e.target.value);
+          setDurationError(undefined);
+        }}
+        error={durationError}
+        hint="Time allotted to practice this topic in Question Bank."
       />
       <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value as ActiveStatus)}>
         <option value="active">Active</option>

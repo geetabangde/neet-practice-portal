@@ -30,22 +30,32 @@ export default function TopicCard({ topic, href }: TopicCardProps) {
       </div>
       <div className="min-w-0">
         <h3 className="text-base font-semibold">{topic.name}</h3>
-        <p className="mt-1 flex items-center gap-1.5 text-xs text-black/80">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            className="h-3.5 w-3.5"
-          >
-            <rect x="6" y="4" width="12" height="17" rx="2" />
-            <path d="M9 9h6M9 13h6M9 17h3" />
-          </svg>
-          {topic.mcqs} MCQs{topic.done !== undefined ? ` · ${topic.done} done` : ""}
-        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-black/80">
+          <span className="flex items-center gap-1">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+            >
+              <rect x="6" y="4" width="12" height="17" rx="2" />
+              <path d="M9 9h6M9 13h6M9 17h3" />
+            </svg>
+            {topic.mcqs} MCQs
+          </span>
+          <span className="flex items-center gap-1 text-slate-500">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            {topic.durationMinutes ?? 15} min
+          </span>
+          {topic.done !== undefined ? <span>· {topic.done} done</span> : null}
+        </div>
       </div>
     </>
   );

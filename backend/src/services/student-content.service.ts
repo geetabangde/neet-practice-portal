@@ -19,6 +19,7 @@ export interface StudentSubject {
 export interface StudentTopic {
   id: number;
   name: string;
+  durationMinutes: number;
   questionCount: number;
   answeredCount: number;
 }
@@ -46,6 +47,7 @@ interface ModuleTopicRow extends RowDataPacket {
   moduleName: string;
   topicId: number | null;
   topicName: string | null;
+  durationMinutes: number | string | null;
   questionCount: number | string;
   answeredCount: number | string;
 }
@@ -93,14 +95,14 @@ export async function findStudentSubjectBySlug(slug: string, studentId: number):
 // The active modules of a subject, each with its active topics and their published question counts
 export async function listStudentModules(subjectId: number, studentId: number): Promise<StudentModule[]> {
   const [rows] = await pool.query<ModuleTopicRow[]>(
-    `SELECT m.id AS moduleId, m.name AS moduleName, t.id AS topicId, t.name AS topicName, COUNT(q.id) AS questionCount,
-       COUNT(a.question_id) AS answeredCount
+    `SELECT m.id AS moduleId, m.name AS moduleName, t.id AS topicId, t.name AS topicName, COALESCE(t.duration_minutes, 15) AS durationMinutes,
+       COUNT(q.id) AS questionCount, COUNT(a.question_id) AS answeredCount
      FROM modules m
      LEFT JOIN topics t ON t.module_id = m.id AND t.status = 'active'
      LEFT JOIN questions q ON q.topic_id = t.id AND q.status = 'published'
      LEFT JOIN student_answers a ON a.question_id = q.id AND a.student_id = ?
      WHERE m.subject_id = ? AND m.status = 'active'
-     GROUP BY m.id, m.name, t.id, t.name
+     GROUP BY m.id, m.name, t.id, t.name, t.duration_minutes
      ORDER BY m.id ASC, t.id ASC`,
     [studentId, subjectId],
   );
@@ -112,7 +114,8 @@ export async function listStudentModules(subjectId: number, studentId: number): 
     if (row.topicId !== null && row.topicName !== null) {
       const questionCount = Number(row.questionCount);
       const answeredCount = Number(row.answeredCount);
-      module.topics.push({ id: row.topicId, name: row.topicName, questionCount, answeredCount });
+      const durationMinutes = Number(row.durationMinutes ?? 15);
+      module.topics.push({ id: row.topicId, name: row.topicName, durationMinutes, questionCount, answeredCount });
       module.questionCount += questionCount;
       module.answeredCount += answeredCount;
     }

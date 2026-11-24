@@ -5,17 +5,14 @@ import Link from "next/link";
 import { useAdminStore } from "@/components/providers/admin-store-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardHeader } from "@/components/ui/card";
-import { studentsData } from "@/data/students";
 import { cn } from "@/lib/cn";
 import { indexById, resultAccuracy } from "@/lib/selectors";
 
 const medals = ["bg-amber-100 text-amber-700", "bg-slate-100 text-slate-600", "bg-orange-100 text-orange-700"];
 
 export function TopStudents() {
-  const { results } = useAdminStore();
-  // Results and payments are still sample data about sample students, so they find their people in the sample list,
-  // not in the real students.
-  const studentById = indexById(studentsData);
+  const { results, students } = useAdminStore();
+  const studentById = indexById(students.items);
 
   // Average accuracy of every student who has taken at least two tests
   const perStudent = new Map<string, number[]>();

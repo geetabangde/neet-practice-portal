@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { getAdminProfile } from "../controllers/auth.controller";
+import { getAnalyticsHandler } from "../controllers/analytics.controller";
+import { uploadImageHandler } from "../controllers/image.controller";
+import { listResultsHandler } from "../controllers/result.controller";
 import { moduleRouter } from "./module.routes";
 import { studentAdminRouter } from "./student-admin.routes";
 import { subjectRouter } from "./subject.routes";
@@ -21,3 +24,6 @@ adminRouter.use("/questions", questionRouter);
 adminRouter.use("/tests", testRouter);
 adminRouter.use("/plans", planRouter);
 adminRouter.use("/students", studentAdminRouter);
+adminRouter.get("/results", listResultsHandler);
+adminRouter.post("/images", uploadImageHandler);
+adminRouter.get("/analytics", getAnalyticsHandler);

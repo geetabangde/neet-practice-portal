@@ -19,8 +19,10 @@ export interface Question {
   correct: OptionKey[];
   explanation: string;
   reference: string;
-  // There is no file storage yet, so only the chosen file name is kept
+  // The name of the file the admin chose
   imageName: string;
+  // Token of the saved picture (shown at /api/images/<token>), or null when the question has no image
+  imageToken: string | null;
   status: QuestionStatus;
   createdAt: string;
 }
@@ -43,6 +45,7 @@ interface QuestionRow extends RowDataPacket {
   explanation: string;
   reference: string;
   imageName: string;
+  imageToken: string | null;
   status: QuestionStatus;
   createdAt: string;
 }
@@ -50,7 +53,7 @@ interface QuestionRow extends RowDataPacket {
 // Column AS alias: the API uses camelCase, MySQL keeps snake_case
 const COLUMNS = `id, subject_id AS subjectId, topic_id AS topicId, question_text AS text, difficulty, type,
   option_a AS optionA, option_b AS optionB, option_c AS optionC, option_d AS optionD, correct,
-  explanation, reference_text AS reference, image_name AS imageName, status,
+  explanation, reference_text AS reference, image_name AS imageName, image_token AS imageToken, status,
   DATE_FORMAT(created_at, '%Y-%m-%d') AS createdAt`;
 
 // Deleting a subject or topic deletes its questions (ON DELETE CASCADE).
@@ -63,14 +66,15 @@ export const CREATE_QUESTIONS_TABLE = `
     question_text TEXT NOT NULL,
     difficulty    ENUM('easy','medium','hard') NOT NULL DEFAULT 'medium',
     type          ENUM('single','multiple') NOT NULL DEFAULT 'single',
-    option_a      VARCHAR(500) NOT NULL DEFAULT '',
-    option_b      VARCHAR(500) NOT NULL DEFAULT '',
-    option_c      VARCHAR(500) NOT NULL DEFAULT '',
-    option_d      VARCHAR(500) NOT NULL DEFAULT '',
+    option_a      TEXT NOT NULL,
+    option_b      TEXT NOT NULL,
+    option_c      TEXT NOT NULL,
+    option_d      TEXT NOT NULL,
     correct       VARCHAR(7) NOT NULL DEFAULT '',
     explanation   TEXT NOT NULL,
     reference_text VARCHAR(255) NOT NULL DEFAULT '',
     image_name    VARCHAR(255) NOT NULL DEFAULT '',
+    image_token   CHAR(32) NULL,
     status        ENUM('published','draft') NOT NULL DEFAULT 'draft',
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -96,6 +100,7 @@ function toQuestion(row: QuestionRow): Question {
     explanation: row.explanation,
     reference: row.reference,
     imageName: row.imageName,
+    imageToken: row.imageToken,
     status: row.status,
     createdAt: row.createdAt,
   };
@@ -155,6 +160,7 @@ export function questionValues(input: QuestionInput): (string | number | null)[]
     input.explanation,
     input.reference,
     input.imageName,
+    input.imageToken,
     input.status,
   ];
 }
@@ -162,8 +168,8 @@ export function questionValues(input: QuestionInput): (string | number | null)[]
 export async function createQuestion(input: QuestionInput): Promise<Question> {
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO questions (subject_id, topic_id, question_text, difficulty, type, option_a, option_b, option_c, option_d,
-       correct, explanation, reference_text, image_name, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       correct, explanation, reference_text, image_name, image_token, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     questionValues(input),
   );
   const created = await getQuestion(result.insertId);
@@ -176,7 +182,7 @@ export async function replaceQuestion(id: number, input: QuestionInput): Promise
   const [result] = await pool.query<ResultSetHeader>(
     `UPDATE questions SET subject_id = ?, topic_id = ?, question_text = ?, difficulty = ?, type = ?,
        option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct = ?, explanation = ?,
-       reference_text = ?, image_name = ?, status = ?
+       reference_text = ?, image_name = ?, image_token = ?, status = ?
      WHERE id = ?`,
     [...questionValues(input), id],
   );

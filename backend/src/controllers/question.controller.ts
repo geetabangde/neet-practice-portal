@@ -15,12 +15,16 @@ import {
   type QuestionStatus,
   type QuestionType,
 } from "../services/question.service";
+import { imageExists, isImageToken } from "../services/image.service";
+import { cleanRich, plainLength } from "../services/rich-text.service";
 
 type Parsed = { ok: true; value: Partial<QuestionInput> } | { ok: false; message: string };
 
 const TEXT_LIMIT = 1000;
 const OPTION_LIMIT = 500;
 const EXPLANATION_LIMIT = 5000;
+// The explanation and options may be HTML from the editor: the limits above count the words, this one the whole HTML
+const HTML_LIMIT = 40000;
 
 const bad = (message: string): Parsed => ({ ok: false, message });
 
@@ -67,8 +71,8 @@ function parseFields(body: unknown): Parsed {
     for (const key of OPTION_KEYS) {
       const option = (raw as Record<string, unknown>)[key];
       if (typeof option !== "string") return bad(`Option ${key} must be text`);
-      if (option.trim().length > OPTION_LIMIT) return bad(`Option ${key} must be ${OPTION_LIMIT} characters or fewer`);
-      options[key] = option.trim();
+      if (plainLength(option) > OPTION_LIMIT || option.length > HTML_LIMIT) return bad(`Option ${key} must be ${OPTION_LIMIT} characters or fewer`);
+      options[key] = cleanRich(option);
     }
     value.options = options;
   }
@@ -79,15 +83,21 @@ function parseFields(body: unknown): Parsed {
     value.correct = [...new Set(raw as OptionKey[])].sort();
   }
   if (data.explanation !== undefined) {
-    if (typeof data.explanation !== "string" || data.explanation.trim().length > EXPLANATION_LIMIT) {
+    if (typeof data.explanation !== "string" || plainLength(data.explanation) > EXPLANATION_LIMIT || data.explanation.length > HTML_LIMIT) {
       return bad(`Explanation must be ${EXPLANATION_LIMIT} characters or fewer`);
     }
-    value.explanation = data.explanation.trim();
+    value.explanation = cleanRich(data.explanation);
   }
   for (const key of ["reference", "imageName"] as const) {
     if (data[key] === undefined) continue;
     if (typeof data[key] !== "string" || data[key].trim().length > 255) return bad(`${key === "reference" ? "Reference" : "Image name"} must be 255 characters or fewer`);
     value[key] = data[key].trim();
+  }
+  if (data.imageToken !== undefined) {
+    // null or empty: the question has no image
+    if (data.imageToken === null || data.imageToken === "") value.imageToken = null;
+    else if (isImageToken(data.imageToken)) value.imageToken = data.imageToken;
+    else return bad("The image is not valid. Upload it again.");
   }
   if (data.status !== undefined) {
     if (data.status !== "published" && data.status !== "draft") return bad("Status must be published or draft");
@@ -106,6 +116,7 @@ const DEFAULTS: Omit<QuestionInput, "text"> = {
   explanation: "",
   reference: "",
   imageName: "",
+  imageToken: null,
   status: "draft",
 };
 
@@ -120,6 +131,8 @@ async function problemWith(q: QuestionInput): Promise<string | null> {
   if (q.subjectId !== null && q.topicId !== null && !(await topicBelongsToSubject(q.topicId, q.subjectId))) {
     return "The chosen topic does not belong to the chosen subject";
   }
+  // The image must have been uploaded first
+  if (q.imageToken !== null && !(await imageExists(q.imageToken))) return "The image was not found. Upload it again.";
   return null;
 }
 

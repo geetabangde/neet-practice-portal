@@ -34,8 +34,7 @@ export default function Countdown({ secondsLeft, onEnd }: { secondsLeft: number;
 
   return (
     <span className={`tabular-nums ${low ? "font-semibold text-red-600" : ""}`} role="timer" aria-label="Time left">
-      {hours > 0 ? `${String(hours).padStart(2, "0")}:` : ""}
-      {mm}:{ss}
+      {String(hours).padStart(2, "0")}:{mm}:{ss}
     </span>
   );
 }

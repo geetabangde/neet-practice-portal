@@ -11,7 +11,8 @@ import type { RowDataPacket } from "mysql2";
 import { pool } from "../config/db";
 import { createModule, isDuplicateModule, type ModuleStatus } from "../services/module.service";
 import { createQuestion, type Difficulty, type OptionKey, type QuestionInput } from "../services/question.service";
-import { createTest, type TestStatus } from "../services/test.service";
+import { addPaperQuestions, type PaperQuestionInput } from "../services/test-paper.service";
+import { createTest, replaceTest, type TestStatus } from "../services/test.service";
 import { createTopic, isDuplicateTopic } from "../services/topic.service";
 
 const DEMO_PREFIX = "[Demo]";
@@ -152,6 +153,7 @@ function demoQuestion(
     explanation: `Demo explanation: ${answerWords} ${multiple ? "are" : "is"} correct for this sample question.`,
     reference: "Demo data",
     imageName: "",
+    imageToken: null,
     status: "published",
   };
 }
@@ -231,41 +233,63 @@ async function add(): Promise<void> {
     }
   }
 
-  // Tests. Published and completed tests hold only published questions, as the admin panel requires.
-  const pick = (names: string[], perSubject: number) => names.flatMap((name) => (questionsBySubject.get(name) ?? []).slice(0, perSubject));
-  const topicsOf = (names: string[]) => names.flatMap((name) => topicsBySubject.get(name) ?? []);
-  const idsOf = (names: string[]) => names.flatMap((name) => (subjects.has(name) ? [subjects.get(name) as number] : []));
-  const allSubjects = Object.keys(CURRICULUM).filter((name) => subjects.has(name));
-
-  const tests: { title: string; status: TestStatus; subjects: string[]; perSubject: number; minutes: number; start: string; end: string }[] = [
-    { title: `${DEMO_PREFIX} Grand Test 1 - NEET Pattern`, status: "completed", subjects: allSubjects, perSubject: 5, minutes: 180, start: when(-30, 9), end: when(-30, 12) },
-    { title: `${DEMO_PREFIX} Grand Test 2 - INICET Pattern`, status: "published", subjects: allSubjects, perSubject: 5, minutes: 180, start: when(-1, 9), end: when(30, 23, 59) },
-    { title: `${DEMO_PREFIX} Grand Test 3 - NEET Pattern`, status: "published", subjects: allSubjects, perSubject: 5, minutes: 180, start: when(7, 9), end: when(7, 12) },
-    { title: `${DEMO_PREFIX} Anatomy Subject Test`, status: "published", subjects: ["Anatomy"], perSubject: 20, minutes: 30, start: when(-1, 9), end: when(30, 23, 59) },
-    { title: `${DEMO_PREFIX} Biochemistry Subject Test`, status: "published", subjects: ["Biochemistry"], perSubject: 20, minutes: 30, start: when(-1, 9), end: when(30, 23, 59) },
-    { title: `${DEMO_PREFIX} Mini Test - Mixed (draft)`, status: "draft", subjects: ["Physiology", "Pathology", "Pharmacology"], perSubject: 4, minutes: 20, start: when(3, 9), end: when(3, 10) },
+  // Tests. Each test gets questions of its own, written inside it: Test Series questions are separate from the QBank
+  // questions and have no subject or topic. A test is skipped when one with the same title exists.
+  type DemoTest = { title: string; status: TestStatus; questions: number; minutes: number; start: string; end: string; ratio: "1/3" | "1/4" };
+  const tests: DemoTest[] = [
+    { title: `${DEMO_PREFIX} Grand Test 1 - NEET Pattern`, status: "completed", questions: 50, minutes: 180, start: when(-30, 9), end: when(-30, 12), ratio: "1/3" },
+    { title: `${DEMO_PREFIX} Grand Test 2 - INICET Pattern`, status: "published", questions: 50, minutes: 180, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/3" },
+    { title: `${DEMO_PREFIX} Grand Test 3 - NEET Pattern`, status: "published", questions: 50, minutes: 180, start: when(7, 9), end: when(7, 12), ratio: "1/3" },
+    { title: `${DEMO_PREFIX} Anatomy Subject Test`, status: "published", questions: 20, minutes: 30, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/4" },
+    { title: `${DEMO_PREFIX} Biochemistry Subject Test`, status: "published", questions: 20, minutes: 30, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/4" },
+    { title: `${DEMO_PREFIX} Mini Test - Mixed (draft)`, status: "draft", questions: 12, minutes: 20, start: when(3, 9), end: when(3, 10), ratio: "1/4" },
+    { title: `${DEMO_PREFIX} Mini Test 1 - Physiology and Pathology`, status: "published", questions: 10, minutes: 20, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/3" },
+    { title: `${DEMO_PREFIX} Mini Test 2 - Pharmacology and Microbiology`, status: "published", questions: 10, minutes: 20, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/4" },
+    { title: `${DEMO_PREFIX} Mini Test 3 - Anatomy, Biochemistry and Community Medicine`, status: "published", questions: 15, minutes: 25, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/3" },
+    { title: `${DEMO_PREFIX} Mini Test 4 - Upcoming`, status: "published", questions: 12, minutes: 15, start: when(5, 9), end: when(5, 12), ratio: "1/4" },
+    { title: `${DEMO_PREFIX} Physiology Subject Test`, status: "published", questions: 20, minutes: 30, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/3" },
+    { title: `${DEMO_PREFIX} Pathology Subject Test`, status: "published", questions: 20, minutes: 30, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/4" },
+    { title: `${DEMO_PREFIX} Pharmacology Subject Test`, status: "published", questions: 20, minutes: 30, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/3" },
+    { title: `${DEMO_PREFIX} Microbiology Subject Test`, status: "published", questions: 20, minutes: 30, start: when(-1, 9), end: when(30, 23, 59), ratio: "1/4" },
+    { title: `${DEMO_PREFIX} Community Medicine Subject Test`, status: "completed", questions: 20, minutes: 30, start: when(-20, 9), end: when(-10, 23, 59), ratio: "1/3" },
   ];
 
+  const letters: OptionKey[] = ["A", "B", "C", "D"];
+  // Every seventh question has two right options, so the "select all that apply" screen can be tried too
+  const demoPaperQuestion = (test: string, n: number): PaperQuestionInput => {
+    const multiple = n % 7 === 0;
+    const right: OptionKey[] = multiple ? ["A", "C"] : [letters[(n - 1) % 4]];
+    return {
+      text: `${DEMO_PREFIX} ${test}: question ${n}. Choose ${right.length > 1 ? "options A and C" : "option " + right[0]}.`,
+      type: multiple ? "multiple" : "single",
+      options: { A: `Option A (question ${n})`, B: `Option B (question ${n})`, C: `Option C (question ${n})`, D: `Option D (question ${n})` },
+      correct: right,
+      explanation: `Demo explanation: ${right.length > 1 ? "options A and C are" : "option " + right[0] + " is"} correct for this sample question.`,
+      reference: "Demo data",
+      imageName: "",
+      imageToken: null,
+      sectionId: null,
+    };
+  };
+
   for (const test of tests) {
-    const names = test.subjects.filter((name) => subjects.has(name));
-    if (names.length === 0) continue;
     const [existing] = await pool.query<RowDataPacket[]>("SELECT id FROM tests WHERE title = ? LIMIT 1", [test.title]);
     if (existing.length > 0) continue;
-    await createTest({
+    // A test is made as a draft first and gets its questions, then it is published (a published test needs questions)
+    const made = await createTest({
       title: test.title,
       description: "Sample test for trying out the student site.",
       kind: test.title.includes("Subject Test") ? "subject" : test.title.includes("Mini") ? "mini" : "grand",
       pattern: "NEET",
-      subjectIds: idsOf(names),
-      topicIds: topicsOf(names),
-      questionIds: pick(names, test.perSubject),
       durationMinutes: test.minutes,
       marksPerQuestion: 4,
-      negativeMarking: 1,
+      negativeRatio: test.ratio,
       startAt: test.start,
       endAt: test.end,
-      status: test.status,
+      status: "draft",
     });
+    await addPaperQuestions(made.id, Array.from({ length: test.questions }, (_, i) => demoPaperQuestion(test.title.replace(DEMO_PREFIX + " ", ""), i + 1)));
+    if (test.status !== "draft") await replaceTest(made.id, { ...made, status: test.status });
     counts.tests += 1;
   }
 

@@ -14,7 +14,7 @@ function toTopic(topic: ApiTopic): Topic {
 }
 
 // A topic is made inside a module; the server works out the subject from it
-type TopicFields = Pick<Topic, "moduleId" | "name" | "status">;
+type TopicFields = Pick<Topic, "moduleId" | "name" | "durationMinutes" | "status">;
 
 async function mapTopic(request: Promise<ApiResult<{ topic: ApiTopic }>>): Promise<ApiResult<Topic>> {
   const result = await request;

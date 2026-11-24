@@ -1,42 +1,32 @@
 import type { Request, Response } from "express";
 import {
-  countPublishedQuestions,
   createTest,
   deleteTest,
   getTest,
-  isMissingReference,
   listTests,
+  NEGATIVE_RATIOS,
   replaceTest,
-  scopeOfQuestions,
   type MockTest,
   type MockTestInput,
+  type NegativeRatio,
   type TestKind,
   type TestPattern,
   type TestStatus,
 } from "../services/test.service";
 
-// What the admin may send. A test is made from its basics; its questions are added later (PATCH questionIds).
-// The subjects and topics of a test are not sent: they are worked out from its questions.
-type Fields = Partial<Omit<MockTestInput, "subjectIds" | "topicIds">>;
+// What the admin may send. A test is made from its basics; its questions are written afterwards, inside the test
+// (see test-paper.controller.ts). The negative marks are not typed: the admin picks 1/3 or 1/4 of the marks.
+type Fields = Partial<MockTestInput>;
 type Parsed = { ok: true; value: Fields } | { ok: false; message: string };
 
 const bad = (message: string): Parsed => ({ ok: false, message });
 
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-const MAX_QUESTIONS = 1000;
 
 // "12" or 12 -> 12; anything else -> null
 function toId(raw: unknown): number | null {
   const id = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : typeof raw === "number" ? raw : NaN;
   return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
-
-// A list of ids with no repeats, in the order given. null when anything in it is not an id.
-function toIdList(raw: unknown, max: number): number[] | null {
-  if (!Array.isArray(raw) || raw.length > max) return null;
-  const ids = raw.map(toId);
-  if (ids.some((id) => id === null)) return null;
-  return [...new Set(ids as number[])];
 }
 
 // Real calendar check: "2026-02-31T10:00" has the right shape but is not a date
@@ -90,10 +80,11 @@ function parseFields(body: unknown): Parsed {
     if (marks === null) return bad("Marks for each question must be more than 0 (up to 2 decimals)");
     value.marksPerQuestion = marks;
   }
-  if (data.negativeMarking !== undefined) {
-    const marks = toMoney(data.negativeMarking, true);
-    if (marks === null) return bad("Negative marking must be 0 or more (up to 2 decimals)");
-    value.negativeMarking = marks;
+  if (data.negativeRatio !== undefined) {
+    if (typeof data.negativeRatio !== "string" || !(NEGATIVE_RATIOS as readonly string[]).includes(data.negativeRatio)) {
+      return bad("Negative marking must be 1/3 or 1/4 of the marks");
+    }
+    value.negativeRatio = data.negativeRatio as NegativeRatio;
   }
   for (const key of ["startAt", "endAt"] as const) {
     if (data[key] === undefined) continue;
@@ -101,11 +92,6 @@ function parseFields(body: unknown): Parsed {
       return bad(`${key === "startAt" ? "Start" : "End"} must be a date and time like 2026-11-20T09:30`);
     }
     value[key] = data[key];
-  }
-  if (data.questionIds !== undefined) {
-    const ids = toIdList(data.questionIds, MAX_QUESTIONS);
-    if (ids === null) return bad(`The list of questions is not valid (at most ${MAX_QUESTIONS})`);
-    value.questionIds = ids;
   }
   if (data.status !== undefined) {
     if (data.status !== "draft" && data.status !== "published" && data.status !== "completed") {
@@ -117,37 +103,22 @@ function parseFields(body: unknown): Parsed {
 }
 
 const NOT_FOUND = { success: false, message: "Test not found" };
-const NO_REFERENCE = { success: false, message: "A chosen question does not exist" };
 const FAILED = { success: false, message: "Something went wrong" };
 
 type Prepared = { ok: true; input: MockTestInput } | { ok: false; message: string };
 
-// Applies the rules to a finished test (the saved test with the changes merged in) and fills in its subjects
-// and topics from its questions. "trusted" are questions that were already in a published test: they are not
-// re-checked, so a question that was later unpublished does not block marking the test completed.
-async function prepare(test: Fields, trusted: number[]): Promise<Prepared> {
+// Applies the rules to a finished test (the saved test with the changes merged in). "questionCount" is how many questions
+// the test has now: a test needs at least one before it can be published or marked completed.
+function prepare(test: Fields, questionCount: number): Prepared {
   if (!test.title) return { ok: false, message: "Give the test a title" };
   if (test.durationMinutes === undefined) return { ok: false, message: "Enter the duration in minutes" };
   if (test.marksPerQuestion === undefined) return { ok: false, message: "Enter the marks for each question" };
   if (!test.startAt) return { ok: false, message: "Choose when the test starts" };
   if (!test.endAt) return { ok: false, message: "Choose when the test ends" };
   if (test.endAt <= test.startAt) return { ok: false, message: "The end must be after the start" };
-  const negativeMarking = test.negativeMarking ?? 0;
-  if (negativeMarking > test.marksPerQuestion) return { ok: false, message: "Negative marking cannot be more than the marks for a correct answer" };
 
-  const questionIds = test.questionIds ?? [];
   const status = test.status ?? "draft";
-
-  const scope = await scopeOfQuestions(questionIds);
-  if (scope.found !== questionIds.length) return { ok: false, message: NO_REFERENCE.message };
-
-  if (status === "published") {
-    if (questionIds.length === 0) return { ok: false, message: "Add at least one question before publishing the test" };
-    const toCheck = questionIds.filter((id) => !trusted.includes(id));
-    if ((await countPublishedQuestions(toCheck)) !== toCheck.length) {
-      return { ok: false, message: "A published test can only contain published questions" };
-    }
-  }
+  if (status === "published" && questionCount === 0) return { ok: false, message: "Add at least one question before publishing the test" };
 
   return {
     ok: true,
@@ -156,12 +127,9 @@ async function prepare(test: Fields, trusted: number[]): Promise<Prepared> {
       description: test.description ?? "",
       kind: test.kind ?? "grand",
       pattern: test.pattern ?? "NEET",
-      subjectIds: scope.subjectIds,
-      topicIds: scope.topicIds,
-      questionIds,
       durationMinutes: test.durationMinutes,
       marksPerQuestion: test.marksPerQuestion,
-      negativeMarking,
+      negativeRatio: test.negativeRatio ?? "1/3",
       startAt: test.startAt,
       endAt: test.endAt,
       status,
@@ -202,24 +170,20 @@ export async function createTestHandler(req: Request, res: Response): Promise<vo
     return;
   }
   try {
-    const prepared = await prepare(parsed.value, []);
+    const prepared = prepare(parsed.value, 0);
     if (!prepared.ok) {
       res.status(400).json({ success: false, message: prepared.message });
       return;
     }
     res.status(201).json({ success: true, message: "Test created", data: { test: await createTest(prepared.input) } });
   } catch (error) {
-    if (isMissingReference(error)) {
-      res.status(400).json(NO_REFERENCE);
-      return;
-    }
     console.error("Create test failed:", error);
     res.status(500).json(FAILED);
   }
 }
 
-// PATCH: send only the fields that change (including questionIds, the full new list of questions). They are
-// merged into the saved test, and the merged result must pass the same rules as a new test.
+// PATCH: send only the fields that change. They are merged into the saved test, and the merged result must pass
+// the same rules as a new test.
 export async function updateTestHandler(req: Request, res: Response): Promise<void> {
   const id = toId(req.params.id);
   if (id === null) {
@@ -237,11 +201,12 @@ export async function updateTestHandler(req: Request, res: Response): Promise<vo
       res.status(404).json(NOT_FOUND);
       return;
     }
-    const { id: _id, subjectIds: _subjects, topicIds: _topics, ...currentFields } = current;
+    const { id: _id, questionCount, sectionCount, negativeMarking: _negative, ...currentFields } = current;
     const merged: Fields = { ...currentFields, ...parsed.value };
+    // With parts, the duration is the total of the parts and is not typed in
+    if (sectionCount > 0) merged.durationMinutes = current.durationMinutes;
 
-    const trusted = current.status === "published" && merged.status === "published" ? current.questionIds : [];
-    const prepared = await prepare(merged, trusted);
+    const prepared = prepare(merged, questionCount);
     if (!prepared.ok) {
       res.status(400).json({ success: false, message: prepared.message });
       return;
@@ -249,10 +214,6 @@ export async function updateTestHandler(req: Request, res: Response): Promise<vo
     await replaceTest(id, prepared.input);
     res.json({ success: true, message: "Test updated", data: { test: await getTest(id) } });
   } catch (error) {
-    if (isMissingReference(error)) {
-      res.status(400).json(NO_REFERENCE);
-      return;
-    }
     console.error("Update test failed:", error);
     res.status(500).json(FAILED);
   }

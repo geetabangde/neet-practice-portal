@@ -12,17 +12,16 @@ import { Button, buttonStyles } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/form-controls";
 import { createTest, updateTest } from "@/lib/tests-api";
-import type { MockTest, TestKind, TestPattern } from "@/types";
+import type { MockTest, NegativeRatio, TestKind } from "@/types";
 
 // Numbers are kept as text, because that is what a text box holds; they become numbers when saving
 interface Values {
   title: string;
   description: string;
   kind: TestKind;
-  pattern: TestPattern;
   durationMinutes: string;
   marksPerQuestion: string;
-  negativeMarking: string;
+  negativeRatio: NegativeRatio;
   // YYYY-MM-DDTHH:mm, as given by <input type="datetime-local">
   startAt: string;
   endAt: string;
@@ -34,13 +33,15 @@ const emptyValues: Values = {
   title: "",
   description: "",
   kind: "grand",
-  pattern: "NEET",
   durationMinutes: "180",
   marksPerQuestion: "4",
-  negativeMarking: "1",
+  negativeRatio: "1/3",
   startAt: "",
   endAt: "",
 };
+
+// Marks taken off for one wrong answer, to 2 decimals: 4 marks at 1/3 is 1.33, at 1/4 is 1
+const negativeText = (marks: number, ratio: NegativeRatio) => String(Math.round((marks / (ratio === "1/3" ? 3 : 4)) * 100) / 100);
 
 const isPositive = (text: string) => Number.isFinite(Number(text)) && Number(text) > 0;
 
@@ -51,12 +52,6 @@ function validate(values: Values): Errors {
     errors.durationMinutes = "Enter the duration in whole minutes.";
   }
   if (!isPositive(values.marksPerQuestion)) errors.marksPerQuestion = "Enter the marks for each question.";
-  const negative = Number(values.negativeMarking);
-  if (values.negativeMarking.trim() === "" || !Number.isFinite(negative) || negative < 0) {
-    errors.negativeMarking = "Enter 0 or more (0 means no negative marking).";
-  } else if (isPositive(values.marksPerQuestion) && negative > Number(values.marksPerQuestion)) {
-    errors.negativeMarking = "This cannot be more than the marks for a correct answer.";
-  }
   if (!values.startAt) errors.startAt = "Choose when the test starts.";
   if (!values.endAt) errors.endAt = "Choose when the test ends.";
   else if (values.startAt && values.endAt <= values.startAt) errors.endAt = "The end must be after the start.";
@@ -76,10 +71,9 @@ export function TestForm({ test }: { test?: MockTest }) {
           title: test.title,
           description: test.description,
           kind: test.kind,
-          pattern: test.pattern,
           durationMinutes: String(test.durationMinutes),
           marksPerQuestion: String(test.marksPerQuestion),
-          negativeMarking: String(test.negativeMarking),
+          negativeRatio: test.negativeRatio,
           startAt: test.startAt,
           endAt: test.endAt,
         }
@@ -103,10 +97,9 @@ export function TestForm({ test }: { test?: MockTest }) {
       title: values.title.trim(),
       description: values.description.trim(),
       kind: values.kind,
-      pattern: values.pattern,
       durationMinutes: Number(values.durationMinutes),
       marksPerQuestion: Number(values.marksPerQuestion),
-      negativeMarking: Number(values.negativeMarking),
+      negativeRatio: values.negativeRatio,
       startAt: values.startAt,
       endAt: values.endAt,
     };
@@ -163,17 +156,12 @@ export function TestForm({ test }: { test?: MockTest }) {
                 value={values.title}
                 onChange={(e) => set("title", e.target.value)}
                 error={errors.title}
-                placeholder="e.g. Grand Test 6 - NEET Pattern"
-                wrapperClassName="sm:col-span-2"
+                placeholder="e.g. Grand Test 6"
               />
               <SelectField label="Test type" value={values.kind} onChange={(e) => set("kind", e.target.value as TestKind)} hint="The tab of the student Test Series it shows in.">
                 <option value="grand">Grand Test</option>
                 <option value="mini">Mini Test</option>
                 <option value="subject">Subject Test</option>
-              </SelectField>
-              <SelectField label="Pattern" value={values.pattern} onChange={(e) => set("pattern", e.target.value as TestPattern)}>
-                <option value="NEET">NEET</option>
-                <option value="INICET">INICET</option>
               </SelectField>
               <TextAreaField
                 label="Description"
@@ -191,6 +179,8 @@ export function TestForm({ test }: { test?: MockTest }) {
                 value={values.durationMinutes}
                 onChange={(e) => set("durationMinutes", e.target.value)}
                 error={errors.durationMinutes}
+                disabled={test !== undefined && test.sectionCount > 0}
+                hint={test !== undefined && test.sectionCount > 0 ? "This test has parts: its duration is the total of the parts. Change it in the Questions screen." : undefined}
               />
               <TextField
                 label="Marks per question"
@@ -203,17 +193,19 @@ export function TestForm({ test }: { test?: MockTest }) {
                 error={errors.marksPerQuestion}
                 hint="Total marks = marks per question × number of questions."
               />
-              <TextField
+              <SelectField
                 label="Negative marking"
-                required
-                type="number"
-                min={0}
-                step="any"
-                value={values.negativeMarking}
-                onChange={(e) => set("negativeMarking", e.target.value)}
-                error={errors.negativeMarking}
-                hint="Marks removed for each wrong answer, for example 1 or 0.25. Write 0 for none."
-              />
+                value={values.negativeRatio}
+                onChange={(e) => set("negativeRatio", e.target.value as NegativeRatio)}
+                hint={
+                  isPositive(values.marksPerQuestion)
+                    ? `A wrong answer takes off ${negativeText(Number(values.marksPerQuestion), values.negativeRatio)} marks.`
+                    : "A wrong answer takes off this share of the marks of a right answer."
+                }
+              >
+                <option value="1/3">1/3 of the marks</option>
+                <option value="1/4">1/4 of the marks</option>
+              </SelectField>
               <div className="hidden sm:block" />
               <TextField
                 label="Start date and time"

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BookOpen, FileQuestion, Layers, LayoutList, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, FileQuestion, Layers, LayoutList, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { PageHeader } from "@/components/common/page-header";
@@ -110,9 +110,25 @@ export function SubjectDetail({ id }: { id: string }) {
         title={subject.name}
         description={subject.description || "Modules of this subject, and the topics inside each module."}
         actions={
-          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModuleModal("new")}>
-            Add module
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/questions?subjectId=${subject.id}`}
+              className={buttonStyles({ variant: "outline" })}
+            >
+              <FileQuestion className="h-4 w-4" aria-hidden="true" />
+              Question Bank
+            </Link>
+            <Link
+              href={`/questions/new?subjectId=${subject.id}`}
+              className={buttonStyles({ variant: "outline" })}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add question
+            </Link>
+            <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModuleModal("new")}>
+              Add module
+            </Button>
+          </div>
         }
       />
 
@@ -132,11 +148,15 @@ export function SubjectDetail({ id }: { id: string }) {
             <dt className="sr-only">Topics</dt>
             <dd>{plural(totalTopics, "topic")}</dd>
           </div>
-          <div className="flex items-center gap-2 text-slate-600">
+          <Link
+            href={`/questions?subjectId=${subject.id}`}
+            className="flex items-center gap-2 text-slate-600 transition hover:text-indigo-600"
+            title="View all questions of this subject in Question Bank"
+          >
             <FileQuestion className="h-4 w-4 text-slate-400" aria-hidden="true" />
             <dt className="sr-only">Questions</dt>
-            <dd>{plural(totalQuestions, "question")}</dd>
-          </div>
+            <dd className="underline-offset-4 hover:underline">{plural(totalQuestions, "question")}</dd>
+          </Link>
         </dl>
       </Card>
 
@@ -183,21 +203,46 @@ export function SubjectDetail({ id }: { id: string }) {
                     <p className="px-5 py-6 text-sm text-slate-500">No topics in this module yet. Use “Add topic” to create the first one.</p>
                   ) : (
                     <ul className="divide-y divide-slate-100">
-                      {moduleTopics.map((topic) => (
-                        <li key={topic.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">{topic.name}</span>
-                          <ActiveBadge status={topic.status} />
-                          <span className="w-24 text-right text-xs text-slate-500">{plural(topicQuestionCount(topic.id, questions.items), "question")}</span>
-                          <div className="flex items-center gap-0.5">
-                            <IconButton label={`Edit topic ${topic.name}`} onClick={() => setTopicModal({ moduleId: topic.moduleId, topic })}>
-                              <Pencil className="h-4 w-4" />
-                            </IconButton>
-                            <IconButton label={`Delete topic ${topic.name}`} onClick={() => setDeletingTopic(topic)} className="hover:bg-red-50 hover:text-red-600">
-                              <Trash2 className="h-4 w-4" />
-                            </IconButton>
-                          </div>
-                        </li>
-                      ))}
+                      {moduleTopics.map((topic) => {
+                        const count = topicQuestionCount(topic.id, questions.items);
+                        return (
+                          <li key={topic.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">{topic.name}</span>
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                              <Clock className="h-3 w-3 text-slate-400" />
+                              {topic.durationMinutes || 15} min
+                            </span>
+                            <ActiveBadge status={topic.status} />
+
+                            <Link
+                              href={`/questions?subjectId=${subject.id}&topicId=${topic.id}`}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                              title="View questions of this topic in Question Bank"
+                            >
+                              <FileQuestion className="h-3.5 w-3.5 text-slate-400" />
+                              {plural(count, "question")}
+                            </Link>
+
+                            <Link
+                              href={`/questions/new?subjectId=${subject.id}&moduleId=${module.id}&topicId=${topic.id}`}
+                              className={buttonStyles({ variant: "outline", size: "sm" })}
+                              title={`Add question to ${topic.name}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                              Add question
+                            </Link>
+
+                            <div className="flex items-center gap-0.5">
+                              <IconButton label={`Edit topic ${topic.name}`} onClick={() => setTopicModal({ moduleId: topic.moduleId, topic })}>
+                                <Pencil className="h-4 w-4" />
+                              </IconButton>
+                              <IconButton label={`Delete topic ${topic.name}`} onClick={() => setDeletingTopic(topic)} className="hover:bg-red-50 hover:text-red-600">
+                                <Trash2 className="h-4 w-4" />
+                              </IconButton>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </Card>

@@ -54,7 +54,7 @@ const ALIASES: Record<string, ImportColumn> = {
   status: "status",
 };
 
-const simplify = (header: string) => header.toLowerCase().replace(/[^a-z0-9]/g, "");
+export const simplify = (header: string) => header.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 // ---- CSV --------------------------------------------------------------------------------------
 
@@ -135,24 +135,32 @@ function rowsFromGrid(grid: string[][]): ReadResult {
   return { ok: true, rows };
 }
 
-export async function readQuestionFile(file: File): Promise<ReadResult> {
+export type GridResult = { ok: true; grid: string[][] } | { ok: false; message: string };
+
+// Opens a .csv or .xlsx file as rows of cells (the first row is the header). Used by every import screen.
+export async function readGrid(file: File): Promise<GridResult> {
   if (file.size > MAX_FILE_BYTES) return { ok: false, message: "The file is bigger than 5 MB." };
   const name = file.name.toLowerCase();
 
   try {
     if (name.endsWith(".csv")) {
-      return rowsFromGrid(parseCsv(await file.text()));
+      return { ok: true, grid: parseCsv(await file.text()) };
     }
     if (name.endsWith(".xlsx")) {
       // Loaded only when an Excel file is chosen, so the rest of the admin panel stays light
       const { readSheet } = await import("read-excel-file/browser");
       const sheet = await readSheet(file);
-      return rowsFromGrid(sheet.map((row) => row.map((value) => (value === null || value === undefined ? "" : String(value)))));
+      return { ok: true, grid: sheet.map((row) => row.map((value) => (value === null || value === undefined ? "" : String(value)))) };
     }
   } catch {
     return { ok: false, message: "The file could not be read. Check that it is a normal .csv or .xlsx file and try again." };
   }
   return { ok: false, message: "Choose a .csv or .xlsx file. (An old .xls file: open it in Excel and use Save As .xlsx.)" };
+}
+
+export async function readQuestionFile(file: File): Promise<ReadResult> {
+  const read = await readGrid(file);
+  return read.ok ? rowsFromGrid(read.grid) : read;
 }
 
 // ---- The template -----------------------------------------------------------------------------

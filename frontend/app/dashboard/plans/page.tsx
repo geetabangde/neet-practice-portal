@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import PlanCard from "@/components/dashboard/PlanCard";
+import CurrentPlanBanner from "@/components/dashboard/CurrentPlanBanner";
+import PlanGrid from "@/components/dashboard/PlanGrid";
 import ReferralBox from "@/components/dashboard/ReferralBox";
-import { plans } from "@/data/dashboard";
 
 export const metadata: Metadata = {
   title: "Plans | HN QBank",
@@ -15,13 +15,11 @@ export default function PlansPage() {
     <DashboardShell title="QBank Edition 8">
       <h1 className="text-center text-2xl font-bold sm:text-3xl">The Gold Standard for NEET PG &ndash; NExT</h1>
 
+      <CurrentPlanBanner />
+
       <ReferralBox />
 
-      <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-3 lg:gap-5">
-        {plans.map((plan) => (
-          <PlanCard key={plan.name} plan={plan} />
-        ))}
-      </div>
+      <PlanGrid />
     </DashboardShell>
   );
 }

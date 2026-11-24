@@ -51,3 +51,20 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Text written in the editor (explanations and options). Used by the editor itself and by every screen that shows it. */
+.rich-content p { margin: 0 0 0.5em; }
+.rich-content p:last-child { margin-bottom: 0; }
+.rich-content ul { list-style: disc; padding-left: 1.4em; margin: 0 0 0.5em; }
+.rich-content ol { list-style: decimal; padding-left: 1.4em; margin: 0 0 0.5em; }
+.rich-content h3 { font-weight: 600; margin: 0.6em 0 0.3em; }
+.rich-content blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.8em; color: #475569; margin: 0 0 0.5em; }
+.rich-content a { color: #077085; text-decoration: underline; }
+.rich-content table { border-collapse: collapse; margin: 0.4em 0; max-width: 100%; }
+.rich-content th, .rich-content td { border: 1px solid #cbd5e1; padding: 0.35em 0.6em; text-align: left; vertical-align: top; min-width: 3em; }
+.rich-content th { background: #e6f8fc; font-weight: 600; }
+.rich-content sub { vertical-align: sub; font-size: 0.75em; }
+.rich-content sup { vertical-align: super; font-size: 0.75em; }
+.rich-editor .ProseMirror { outline: none; }
+.rich-editor .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #94a3b8; float: left; height: 0; pointer-events: none; }
+.rich-editor .selectedCell { background: #cceff7; }

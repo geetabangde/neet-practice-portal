@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import DashboardShell from "@/components/dashboard/DashboardShell";
+import { StudentGate } from "@/components/auth/StudentGate";
 import TestAttemptView from "@/components/dashboard/TestAttemptView";
 
 export const metadata: Metadata = {
@@ -25,10 +25,13 @@ async function Attempt({ searchParams }: AttemptPageProps) {
 
 export default function TestAttemptPage({ searchParams }: AttemptPageProps) {
   return (
-    <DashboardShell title="QBank Edition 8">
-      <Suspense fallback={null}>
-        <Attempt searchParams={searchParams} />
-      </Suspense>
-    </DashboardShell>
+    // A full-screen exam: no sidebar. Only a signed-in student gets in (StudentGate).
+    <StudentGate>
+      <div className="min-h-screen bg-white text-brand-950">
+        <Suspense fallback={null}>
+          <Attempt searchParams={searchParams} />
+        </Suspense>
+      </div>
+    </StudentGate>
   );
 }

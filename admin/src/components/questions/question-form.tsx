@@ -3,17 +3,19 @@
 import { ArrowLeft, Save, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/common/page-header";
 import { useAdminStore } from "@/components/providers/admin-store-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox, SelectField, TextAreaField, TextField } from "@/components/ui/form-controls";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Segmented } from "@/components/ui/segmented";
 import { cn } from "@/lib/cn";
 import { createQuestion, updateQuestion } from "@/lib/questions-api";
 import type { Difficulty, OptionKey, Question, QuestionStatus, QuestionType } from "@/types";
+import { imageUrl, uploadQuestionImage } from "@/lib/images-api";
 import { ImageUpload, type ChosenImage } from "./image-upload";
 
 const OPTION_KEYS: OptionKey[] = ["A", "B", "C", "D"];
@@ -81,31 +83,70 @@ const hasErrors = (errors: FormErrors) =>
 interface QuestionFormProps {
   // The question being edited. Leave out to add a new one.
   question?: Question;
+  initialSubjectId?: string;
+  initialModuleId?: string;
+  initialTopicId?: string;
+  returnUrl?: string;
 }
 
-export function QuestionForm({ question }: QuestionFormProps) {
+export function QuestionForm({
+  question,
+  initialSubjectId,
+  initialModuleId,
+  initialTopicId,
+  returnUrl,
+}: QuestionFormProps) {
   const router = useRouter();
   const toast = useToast();
   const { questions, subjects, modules, topics } = useAdminStore();
 
-  const [values, setValues] = useState<FormValues>(
-    question
-      ? {
-          subjectId: question.subjectId,
-          moduleId: topics.items.find((topic) => topic.id === question.topicId)?.moduleId ?? "",
-          topicId: question.topicId,
-          text: question.text,
-          difficulty: question.difficulty,
-          type: question.type,
-          options: { ...question.options },
-          correct: [...question.correct],
-          explanation: question.explanation,
-          reference: question.reference,
-        }
-      : emptyValues,
-  );
+  const [values, setValues] = useState<FormValues>(() => {
+    if (question) {
+      return {
+        subjectId: question.subjectId,
+        moduleId: topics.items.find((topic) => topic.id === question.topicId)?.moduleId ?? "",
+        topicId: question.topicId,
+        text: question.text,
+        difficulty: question.difficulty,
+        type: question.type,
+        options: { ...question.options },
+        correct: [...question.correct],
+        explanation: question.explanation,
+        reference: question.reference,
+      };
+    }
+    const topic = initialTopicId ? topics.items.find((t) => t.id === initialTopicId) : undefined;
+    const resolvedModuleId = initialModuleId || topic?.moduleId || "";
+    const module = resolvedModuleId ? modules.items.find((m) => m.id === resolvedModuleId) : undefined;
+    const resolvedSubjectId = initialSubjectId || topic?.subjectId || module?.subjectId || "";
+    return {
+      ...emptyValues,
+      subjectId: resolvedSubjectId,
+      moduleId: resolvedModuleId,
+      topicId: initialTopicId || "",
+    };
+  });
+
+  useEffect(() => {
+    if (question) return;
+    if (initialSubjectId || initialModuleId || initialTopicId) {
+      setValues((prev) => {
+        if (prev.text || (prev.subjectId && prev.topicId)) return prev;
+        const topic = initialTopicId ? topics.items.find((t) => t.id === initialTopicId) : undefined;
+        const resolvedModuleId = initialModuleId || topic?.moduleId || prev.moduleId;
+        const module = resolvedModuleId ? modules.items.find((m) => m.id === resolvedModuleId) : undefined;
+        const resolvedSubjectId = initialSubjectId || topic?.subjectId || module?.subjectId || prev.subjectId;
+        return {
+          ...prev,
+          subjectId: resolvedSubjectId || prev.subjectId,
+          moduleId: resolvedModuleId || prev.moduleId,
+          topicId: initialTopicId || prev.topicId,
+        };
+      });
+    }
+  }, [initialSubjectId, initialModuleId, initialTopicId, topics.items, modules.items, question]);
   const [image, setImage] = useState<ChosenImage | null>(
-    question?.imageName ? { name: question.imageName, previewUrl: null } : null,
+    question?.imageToken ? { name: question.imageName || "Question image", previewUrl: imageUrl(question.imageToken), token: question.imageToken } : null,
   );
   const [imageError, setImageError] = useState<string>();
   const [errors, setErrors] = useState<FormErrors>({ options: {} });
@@ -144,6 +185,20 @@ export function QuestionForm({ question }: QuestionFormProps) {
       return;
     }
 
+    // A picture chosen just now is uploaded first: the question then keeps its token
+    let imageToken = image?.token ?? null;
+    if (image?.file) {
+      setSaving(mode);
+      const uploaded = await uploadQuestionImage(image.file);
+      if (!uploaded.ok) {
+        setSaving(null);
+        setImageError(uploaded.message);
+        toast({ title: "The image was not uploaded", description: uploaded.message, tone: "error" });
+        return;
+      }
+      imageToken = uploaded.data.token;
+    }
+
     const fields = {
       subjectId: values.subjectId,
       topicId: values.topicId,
@@ -155,6 +210,7 @@ export function QuestionForm({ question }: QuestionFormProps) {
       explanation: values.explanation.trim(),
       reference: values.reference.trim(),
       imageName: image?.name ?? "",
+      imageToken,
       status: mode,
     };
 
@@ -173,16 +229,19 @@ export function QuestionForm({ question }: QuestionFormProps) {
       title: mode === "published" ? "Question published" : "Draft saved",
       description: `${result.data.id} was saved.`,
     });
-    router.push("/questions");
+    const backHref = returnUrl || (initialSubjectId ? `/subjects/${initialSubjectId}` : "/questions");
+    router.push(backHref);
   }
 
   const editing = question !== undefined;
+  const backHref = returnUrl || (initialSubjectId ? `/subjects/${initialSubjectId}` : "/questions");
+  const subjectName = initialSubjectId ? subjects.items.find((s) => s.id === initialSubjectId)?.name : undefined;
 
   return (
     <>
-      <Link href="/questions" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800">
+      <Link href={backHref} className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to question bank
+        {subjectName ? `Back to ${subjectName}` : "Back to question bank"}
       </Link>
       <PageHeader
         title={editing ? "Edit question" : "Add question"}
@@ -240,12 +299,13 @@ export function QuestionForm({ question }: QuestionFormProps) {
                         {key}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <TextField
+                        <RichTextEditor
+                          compact
                           label={`Option ${key}`}
                           required
                           value={values.options[key]}
-                          onChange={(e) => {
-                            setValues((prev) => ({ ...prev, options: { ...prev.options, [key]: e.target.value } }));
+                          onChange={(html) => {
+                            setValues((prev) => ({ ...prev, options: { ...prev.options, [key]: html } }));
                             setErrors((prev) => ({ ...prev, options: { ...prev.options, [key]: undefined } }));
                           }}
                           error={errors.options[key]}
@@ -275,17 +335,17 @@ export function QuestionForm({ question }: QuestionFormProps) {
             <Card>
               <CardHeader title="Explanation" description="Shown to students after they answer" />
               <CardContent className="space-y-5">
-                <TextAreaField
+                <RichTextEditor
                   label="Detailed explanation"
                   required
-                  rows={5}
                   value={values.explanation}
-                  onChange={(e) => {
-                    set("explanation", e.target.value);
+                  onChange={(html) => {
+                    set("explanation", html);
                     setErrors((prev) => ({ ...prev, explanation: undefined }));
                   }}
                   error={errors.explanation}
                   placeholder="Explain why the correct option is right and the others are wrong…"
+                  hint="Use the bar for bold, lists, tables and links."
                 />
                 <TextField
                   label="Reference / source"

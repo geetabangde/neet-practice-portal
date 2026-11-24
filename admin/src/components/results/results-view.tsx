@@ -17,7 +17,6 @@ import { Select } from "@/components/ui/form-controls";
 import { Pagination } from "@/components/ui/pagination";
 import { ProgressBar } from "@/components/ui/progress";
 import { SearchInput } from "@/components/ui/search-input";
-import { studentsData } from "@/data/students";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatDate } from "@/lib/format";
 import { indexById, resultAccuracy, scoreTone } from "@/lib/selectors";
@@ -28,7 +27,7 @@ const PAGE_SIZE = 10;
 type SortKey = "newest" | "best" | "lowest";
 
 export function ResultsView() {
-  const { results, tests } = useAdminStore();
+  const { results, tests, students, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
@@ -36,9 +35,7 @@ export function ResultsView() {
   const [band, setBand] = useState("all");
   const [sort, setSort] = useState<SortKey>("newest");
 
-  // Results and payments are still sample data about sample students, so they find their people in the sample list,
-  // not in the real students.
-  const studentById = indexById(studentsData);
+  const studentById = indexById(students.items);
   const testById = indexById(tests.items);
   const term = query.trim().toLowerCase();
 
@@ -106,6 +103,38 @@ export function ResultsView() {
     { key: "date", header: "Completed", cell: (result) => <span className="whitespace-nowrap">{formatDate(result.completedAt)}</span> },
   ];
 
+  // Downloads the results that match the filters as a CSV file (opens in Excel)
+  const exportCsv = () => {
+    // A cell that starts with = + - or @ could be run as a formula by Excel, so it gets a ' in front
+    const cell = (value: string | number) => {
+      const text = String(value);
+      const safe = /^[=+\-@]/.test(text) ? `'${text}` : text;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+    const rows = filtered.map((result) => [
+      studentById.get(result.studentId)?.name ?? "Deleted student",
+      testById.get(result.testId)?.title ?? "Deleted test",
+      result.totalMarks,
+      result.marksObtained,
+      `${resultAccuracy(result)}%`,
+      result.correct,
+      result.incorrect,
+      result.unattempted,
+      result.rank,
+      result.timeTakenMinutes,
+      result.completedAt,
+    ]);
+    const header = ["Student", "Test", "Total marks", "Obtained", "Accuracy", "Correct", "Incorrect", "Unattempted", "Rank", "Time taken (min)", "Completed"];
+    const csv = [header, ...rows].map((row) => row.map(cell).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "test-results.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Results exported", description: `${rows.length} ${rows.length === 1 ? "result" : "results"} saved as test-results.csv.` });
+  };
+
   const clearFilters = () => {
     setQuery("");
     setTestFilter("all");
@@ -118,7 +147,7 @@ export function ResultsView() {
         title="Test results"
         description="How students performed in every test they attempted."
         actions={
-          <Button variant="outline" onClick={() => toast({ title: "Export started", description: "Demo only: no file is created yet." })}>
+          <Button variant="outline" onClick={exportCsv} disabled={filtered.length === 0}>
             Export results
           </Button>
         }
@@ -130,6 +159,19 @@ export function ResultsView() {
         <StatCard label="Best accuracy" value={`${best}%`} icon={Trophy} tone="amber" />
         <StatCard label="Scored 50% or more" value={filtered.length ? `${Math.round((passing / filtered.length) * 100)}%` : "0%"} icon={Target} tone="emerald" />
       </section>
+
+      {contentStatus === "error" ? (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          Could not load the results from the server.
+          <Button size="sm" variant="outline" onClick={reloadContent}>
+            Try again
+          </Button>
+        </div>
+      ) : contentStatus === "loading" ? (
+        <p role="status" className="mb-5 rounded-lg bg-white px-4 py-3 text-sm text-slate-600">
+          Loading the results...
+        </p>
+      ) : null}
 
       <ListCard
         toolbar={

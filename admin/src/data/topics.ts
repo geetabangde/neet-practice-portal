@@ -23,6 +23,7 @@ export const topicsData: Topic[] = topicSeeds
     subjectId: seed.subjectId,
     moduleId: `m-${seed.subjectId}`,
     name: seed.name,
+    durationMinutes: 15,
     // A few topics are switched off, to show both states
     status: i % 11 === 6 ? "inactive" : "active",
   }));

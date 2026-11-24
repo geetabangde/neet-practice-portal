@@ -176,8 +176,8 @@ export async function getCustomModule(
   const module = modules[0];
   if (!module) return null;
 
-  const [rows] = await pool.query<(RowDataPacket & { id: number; text: string; type: QuestionType; a: string; b: string; c: string; d: string; bookmarked: number })[]>(
-    `SELECT q.id, q.question_text AS text, q.type, q.option_a AS a, q.option_b AS b, q.option_c AS c, q.option_d AS d,
+  const [rows] = await pool.query<(RowDataPacket & { id: number; text: string; type: QuestionType; a: string; b: string; c: string; d: string; imageToken: string | null; bookmarked: number })[]>(
+    `SELECT q.id, q.question_text AS text, q.type, q.option_a AS a, q.option_b AS b, q.option_c AS c, q.option_d AS d, q.image_token AS imageToken,
        (b.question_id IS NOT NULL) AS bookmarked
      FROM custom_module_questions cq
      JOIN questions q ON q.id = cq.question_id
@@ -187,6 +187,6 @@ export async function getCustomModule(
      ORDER BY cq.position ASC`,
     [studentId, moduleId],
   );
-  const questions = rows.map((row) => ({ id: row.id, text: row.text, type: row.type, options: { A: row.a, B: row.b, C: row.c, D: row.d } as Record<OptionKey, string>, bookmarked: row.bookmarked === 1 }));
+  const questions = rows.map((row) => ({ id: row.id, text: row.text, type: row.type, options: { A: row.a, B: row.b, C: row.c, D: row.d } as Record<OptionKey, string>, imageToken: row.imageToken, bookmarked: row.bookmarked === 1 }));
   return { id: module.id, title: module.title, questions };
 }

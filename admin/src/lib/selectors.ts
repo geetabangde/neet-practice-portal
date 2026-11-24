@@ -19,7 +19,7 @@ export function topicQuestionCount(topicId: string, questions: Question[]): numb
 }
 
 export function testTotals(test: MockTest) {
-  const totalQuestions = test.questionIds.length;
+  const totalQuestions = test.questionCount;
   return { totalQuestions, totalMarks: totalQuestions * test.marksPerQuestion };
 }
 

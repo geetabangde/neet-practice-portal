@@ -14,6 +14,7 @@
     "db:setup": "tsx src/scripts/db-setup.ts",
     "seed:plans": "tsx src/scripts/seed-plans.ts",
     "db:export-sql": "tsx src/scripts/export-sql.ts",
+    "db:export-demo": "tsx src/scripts/export-demo-sql.ts",
     "admin:sql": "tsx src/scripts/admin-sql.ts",
     "seed:demo": "tsx src/scripts/seed-demo.ts"
   },
@@ -26,13 +27,15 @@
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.24.6"
+    "mysql2": "^3.24.6",
+    "sanitize-html": "^2.18.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.6",
+    "@types/sanitize-html": "^2.16.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }

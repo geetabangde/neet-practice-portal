@@ -99,7 +99,14 @@ export default function TopicPractice({ slug, topicId }: { slug: string; topicId
       ) : (
         <div className="mt-4 flex flex-1 flex-col">
           {/* key: a different topic starts the session from the first question */}
-          <PracticeView key={topic.id} title={topic.name} questions={questions} submit={submit} toggleBookmark={toggleBookmark} />
+          <PracticeView
+            key={topic.id}
+            title={topic.name}
+            durationMinutes={topic.durationMinutes}
+            questions={questions}
+            submit={submit}
+            toggleBookmark={toggleBookmark}
+          />
         </div>
       )}
     </>

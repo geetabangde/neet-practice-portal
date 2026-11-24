@@ -8,19 +8,36 @@ import { StatCard } from "@/components/common/stat-card";
 import { useAdminStore } from "@/components/providers/admin-store-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { studentsData } from "@/data/students";
 import { formatDate } from "@/lib/format";
-import { indexById, resultAccuracy, scoreTone } from "@/lib/selectors";
+import { resultAccuracy, scoreTone } from "@/lib/selectors";
 
 export function ResultDetail({ id }: { id: string }) {
-  const { results, tests, subjects } = useAdminStore();
+  const { results, tests, students, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
 
   const result = results.find((r) => r.id === id);
+
+  if (!result && contentStatus === "loading") {
+    return (
+      <p role="status" className="rounded-lg bg-white px-4 py-3 text-sm text-slate-600">
+        Loading the result...
+      </p>
+    );
+  }
+
+  if (!result && contentStatus === "error") {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+        Could not load the result from the server.
+        <Button size="sm" variant="outline" onClick={reloadContent}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
 
   if (!result) {
     return (
@@ -39,11 +56,8 @@ export function ResultDetail({ id }: { id: string }) {
     );
   }
 
-  // Results and payments are still sample data about sample students, so they find their people in the sample list,
-  // not in the real students.
-  const student = studentsData.find((s) => s.id === result.studentId);
+  const student = students.items.find((s) => s.id === result.studentId);
   const test = tests.items.find((t) => t.id === result.testId);
-  const subjectById = indexById(subjects.items);
   const accuracy = resultAccuracy(result);
   const totalQuestions = result.correct + result.incorrect + result.unattempted;
   const negative = test?.negativeMarking ?? 0;
@@ -112,48 +126,6 @@ export function ResultDetail({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-2">
-          <CardHeader title="Subject-wise breakdown" description="Correct, incorrect and unattempted questions in each subject" />
-          <CardContent>
-            <ul className="space-y-5">
-              {result.subjectScores.map((score) => {
-                const total = score.correct + score.incorrect + score.unattempted;
-                const subjectAccuracy = resultAccuracy(score);
-                return (
-                  <li key={score.subjectId}>
-                    <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                      <span className="font-medium text-slate-800">{subjectById.get(score.subjectId)?.name ?? "Deleted subject"}</span>
-                      <span className="flex items-center gap-2 text-slate-500">
-                        {score.correct}/{total} correct
-                        <Badge tone={scoreTone(subjectAccuracy)}>{subjectAccuracy}%</Badge>
-                      </span>
-                    </div>
-                    <div
-                      role="img"
-                      aria-label={`${score.correct} correct, ${score.incorrect} incorrect, ${score.unattempted} unattempted`}
-                      className="flex h-3 overflow-hidden rounded-full bg-slate-100"
-                    >
-                      <div className="bg-emerald-500" style={{ width: `${(score.correct / total) * 100}%` }} />
-                      <div className="bg-red-400" style={{ width: `${(score.incorrect / total) * 100}%` }} />
-                      <div className="bg-slate-300" style={{ width: `${(score.unattempted / total) * 100}%` }} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-slate-600">
-              <li className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" aria-hidden="true" /> Correct
-              </li>
-              <li className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-red-400" aria-hidden="true" /> Incorrect
-              </li>
-              <li className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-slate-300" aria-hidden="true" /> Unattempted
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -183,7 +155,7 @@ export function ResultDetail({ id }: { id: string }) {
               <dl className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <dt className="text-slate-500">Questions</dt>
-                  <dd className="font-medium text-slate-900">{test.questionIds.length}</dd>
+                  <dd className="font-medium text-slate-900">{test.questionCount}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Duration</dt>
@@ -195,7 +167,7 @@ export function ResultDetail({ id }: { id: string }) {
                 </div>
                 <div>
                   <dt className="text-slate-500">Negative marking</dt>
-                  <dd className="font-medium text-slate-900">{test.negativeMarking > 0 ? `−${test.negativeMarking}` : "None"}</dd>
+                  <dd className="font-medium text-slate-900">{`${test.negativeRatio} of the marks (−${test.negativeMarking})`}</dd>
                 </div>
               </dl>
             ) : (

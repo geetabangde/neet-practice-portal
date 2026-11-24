@@ -1,30 +1,21 @@
 import { apiRequest, type ApiResult } from "@/lib/api";
 import type { MockTest } from "@/types";
 
-// What the backend sends: the same test, but with numeric ids
-interface ApiTest extends Omit<MockTest, "id" | "subjectIds" | "topicIds" | "questionIds"> {
+// What the backend sends: the same test, but with a numeric id
+interface ApiTest extends Omit<MockTest, "id"> {
   id: number;
-  subjectIds: number[];
-  topicIds: number[];
-  questionIds: number[];
 }
 
 // The admin panel keeps ids as strings everywhere, so convert once, here
 function toTest(test: ApiTest): MockTest {
-  return {
-    ...test,
-    id: String(test.id),
-    subjectIds: test.subjectIds.map(String),
-    topicIds: test.topicIds.map(String),
-    questionIds: test.questionIds.map(String),
-  };
+  return { ...test, id: String(test.id) };
 }
 
-// Everything a test has, apart from its id
-export type TestFields = Omit<MockTest, "id">;
+// Everything a test has, apart from its id and the two numbers the server works out
+export type TestFields = Omit<MockTest, "id" | "questionCount" | "sectionCount" | "negativeMarking">;
 
-// What making a test needs: only the basics. A new test starts as a draft with no questions; they are added afterwards.
-export type TestBasics = Pick<MockTest, "title" | "description" | "kind" | "pattern" | "durationMinutes" | "marksPerQuestion" | "negativeMarking" | "startAt" | "endAt">;
+// What making a test needs: only the basics. A new test starts as a draft with no questions; they are written afterwards.
+export type TestBasics = Pick<MockTest, "title" | "description" | "kind" | "durationMinutes" | "marksPerQuestion" | "negativeRatio" | "startAt" | "endAt">;
 
 async function mapTest(request: Promise<ApiResult<{ test: ApiTest }>>): Promise<ApiResult<MockTest>> {
   const result = await request;

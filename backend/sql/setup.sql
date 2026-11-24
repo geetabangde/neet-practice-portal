@@ -44,13 +44,14 @@ CREATE TABLE IF NOT EXISTS modules (
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS topics (
-    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    subject_id INT UNSIGNED NOT NULL,
-    module_id  INT UNSIGNED NOT NULL,
-    name       VARCHAR(150) NOT NULL,
-    status     ENUM('active','inactive') NOT NULL DEFAULT 'active',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    subject_id       INT UNSIGNED NOT NULL,
+    module_id        INT UNSIGNED NOT NULL,
+    name             VARCHAR(150) NOT NULL,
+    duration_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 15,
+    status           ENUM('active','inactive') NOT NULL DEFAULT 'active',
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_topics_module_name (module_id, name),
     KEY idx_topics_subject (subject_id),
@@ -66,14 +67,15 @@ CREATE TABLE IF NOT EXISTS questions (
     question_text TEXT NOT NULL,
     difficulty    ENUM('easy','medium','hard') NOT NULL DEFAULT 'medium',
     type          ENUM('single','multiple') NOT NULL DEFAULT 'single',
-    option_a      VARCHAR(500) NOT NULL DEFAULT '',
-    option_b      VARCHAR(500) NOT NULL DEFAULT '',
-    option_c      VARCHAR(500) NOT NULL DEFAULT '',
-    option_d      VARCHAR(500) NOT NULL DEFAULT '',
+    option_a      TEXT NOT NULL,
+    option_b      TEXT NOT NULL,
+    option_c      TEXT NOT NULL,
+    option_d      TEXT NOT NULL,
     correct       VARCHAR(7) NOT NULL DEFAULT '',
     explanation   TEXT NOT NULL,
     reference_text VARCHAR(255) NOT NULL DEFAULT '',
     image_name    VARCHAR(255) NOT NULL DEFAULT '',
+    image_token   CHAR(32) NULL,
     status        ENUM('published','draft') NOT NULL DEFAULT 'draft',
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -85,6 +87,25 @@ CREATE TABLE IF NOT EXISTS questions (
     CONSTRAINT fk_questions_topic FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS question_images (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    token      CHAR(32) NOT NULL,
+    mime       VARCHAR(30) NOT NULL,
+    file_name  VARCHAR(255) NOT NULL DEFAULT '',
+    size       INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_question_images_token (token)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS question_image_chunks (
+    image_id INT UNSIGNED NOT NULL,
+    position SMALLINT UNSIGNED NOT NULL,
+    data     MEDIUMBLOB NOT NULL,
+    PRIMARY KEY (image_id, position),
+    CONSTRAINT fk_question_image_chunks_image FOREIGN KEY (image_id) REFERENCES question_images (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS tests (
     id                 INT UNSIGNED NOT NULL AUTO_INCREMENT,
     title              VARCHAR(200) NOT NULL,
@@ -93,6 +114,7 @@ CREATE TABLE IF NOT EXISTS tests (
     pattern            ENUM('NEET','INICET') NOT NULL DEFAULT 'NEET',
     duration_minutes   SMALLINT UNSIGNED NOT NULL,
     marks_per_question DECIMAL(6,2) NOT NULL,
+    negative_ratio     ENUM('1/3','1/4') NOT NULL DEFAULT '1/3',
     negative_marking   DECIMAL(6,2) NOT NULL DEFAULT 0,
     start_at           DATETIME NOT NULL,
     end_at             DATETIME NOT NULL,
@@ -104,30 +126,42 @@ CREATE TABLE IF NOT EXISTS tests (
     KEY idx_tests_start (start_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS test_subjects (
-    test_id    INT UNSIGNED NOT NULL,
-    subject_id INT UNSIGNED NOT NULL,
-    PRIMARY KEY (test_id, subject_id),
-    CONSTRAINT fk_test_subjects_test FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE,
-    CONSTRAINT fk_test_subjects_subject FOREIGN KEY (subject_id) REFERENCES subjects (id) ON DELETE CASCADE
+CREATE TABLE IF NOT EXISTS test_sections (
+    id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    test_id          INT UNSIGNED NOT NULL,
+    position         SMALLINT UNSIGNED NOT NULL,
+    name             VARCHAR(60) NOT NULL,
+    duration_minutes SMALLINT UNSIGNED NOT NULL,
+    instructions     VARCHAR(1000) NOT NULL DEFAULT '',
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_test_sections_order (test_id, position),
+    CONSTRAINT fk_test_sections_test FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS test_topics (
-    test_id  INT UNSIGNED NOT NULL,
-    topic_id INT UNSIGNED NOT NULL,
-    PRIMARY KEY (test_id, topic_id),
-    CONSTRAINT fk_test_topics_test FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE,
-    CONSTRAINT fk_test_topics_topic FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS test_questions (
-    test_id     INT UNSIGNED NOT NULL,
-    question_id INT UNSIGNED NOT NULL,
-    position    SMALLINT UNSIGNED NOT NULL,
-    PRIMARY KEY (test_id, question_id),
-    KEY idx_test_questions_order (test_id, position),
-    CONSTRAINT fk_test_questions_test FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE,
-    CONSTRAINT fk_test_questions_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
+CREATE TABLE IF NOT EXISTS test_series_questions (
+    id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    test_id        INT UNSIGNED NOT NULL,
+    position       SMALLINT UNSIGNED NOT NULL,
+    question_text  TEXT NOT NULL,
+    type           ENUM('single','multiple') NOT NULL DEFAULT 'single',
+    option_a       TEXT NOT NULL,
+    option_b       TEXT NOT NULL,
+    option_c       TEXT NOT NULL,
+    option_d       TEXT NOT NULL,
+    correct        VARCHAR(7) NOT NULL DEFAULT '',
+    explanation    TEXT NOT NULL,
+    reference_text VARCHAR(255) NOT NULL DEFAULT '',
+    image_name     VARCHAR(255) NOT NULL DEFAULT '',
+    image_token    CHAR(32) NULL,
+    section_id     INT UNSIGNED NULL,
+    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_test_series_questions_order (test_id, position),
+    KEY idx_test_series_questions_section (section_id),
+    CONSTRAINT fk_test_series_questions_test FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE,
+    CONSTRAINT fk_test_series_questions_section FOREIGN KEY (section_id) REFERENCES test_sections (id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS plans (
@@ -251,7 +285,22 @@ CREATE TABLE IF NOT EXISTS test_attempt_answers (
     marked      TINYINT(1) NOT NULL DEFAULT 0,
     PRIMARY KEY (attempt_id, question_id),
     CONSTRAINT fk_attempt_answers_attempt FOREIGN KEY (attempt_id) REFERENCES test_attempts (id) ON DELETE CASCADE,
-    CONSTRAINT fk_attempt_answers_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
+    CONSTRAINT fk_attempt_answers_question FOREIGN KEY (question_id) REFERENCES test_series_questions (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS plan_purchases (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    student_id INT UNSIGNED NOT NULL,
+    plan_id    INT UNSIGNED NULL,
+    months     SMALLINT UNSIGNED NOT NULL,
+    -- Whole rupees paid
+    amount     INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_plan_purchases_created (created_at),
+    KEY idx_plan_purchases_student (student_id),
+    CONSTRAINT fk_plan_purchases_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+    CONSTRAINT fk_plan_purchases_plan FOREIGN KEY (plan_id) REFERENCES plans (id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Starter subjects

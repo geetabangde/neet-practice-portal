@@ -105,7 +105,13 @@ export default function SubjectTopics({ slug }: { slug: string }) {
                   {module.topics.map((topic) => (
                     <TopicCard
                       key={topic.id}
-                      topic={{ name: topic.name, mcqs: topic.questionCount, done: topic.answeredCount, ...topicLook(subject.slug, topic.name) }}
+                      topic={{
+                        name: topic.name,
+                        mcqs: topic.questionCount,
+                        durationMinutes: topic.durationMinutes,
+                        done: topic.answeredCount,
+                        ...topicLook(subject.slug, topic.name),
+                      }}
                       href={`/dashboard/${subject.slug}/topics/${topic.id}`}
                     />
                   ))}

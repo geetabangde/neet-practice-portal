@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { fetchSeriesTests, type SeriesTest, type TestKind } from "@/lib/studentContent";
 import { useStudentFetch } from "@/lib/useStudentFetch";
-import { ArrowRightIcon, ChevronDownIcon, ClockIcon, DocIcon } from "./icons";
+import { ArrowRightIcon, ChevronDownIcon, ClockIcon, DocIcon, LockIcon } from "./icons";
 
 type PatternFilter = "all" | SeriesTest["pattern"];
 
@@ -196,7 +196,18 @@ function TestSeriesList({ tests }: { tests: SeriesTest[] }) {
                     </p>
                   </div>
                   <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
-                    {upcoming ? (
+                    {test.locked ? (
+                      <>
+                        <Link
+                          href="/dashboard/plans"
+                          className="inline-flex items-center gap-2 rounded-lg border border-accent bg-white px-5 py-2 text-xs font-semibold hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          <LockIcon className="h-4 w-4" />
+                          Unlock
+                        </Link>
+                        <span className="text-[10px] text-slate-500">Needs a plan</span>
+                      </>
+                    ) : upcoming ? (
                       <span className="rounded-md bg-accent-soft px-5 py-2 text-xs font-medium">Coming soon</span>
                     ) : (
                       <Link href={`/dashboard/test-series/instructions?id=${test.id}`} className={startClass}>

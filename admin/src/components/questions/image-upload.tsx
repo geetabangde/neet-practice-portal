@@ -10,8 +10,12 @@ const MAX_BYTES = 2 * 1024 * 1024;
 export interface ChosenImage {
   // Name of the file, kept with the question
   name: string;
-  // Preview address. null when only the name is known (an image chosen earlier).
+  // Preview address: a local one for a file just chosen, or the saved picture's address
   previewUrl: string | null;
+  // The file just chosen. It is uploaded when the question is saved. Missing for a picture that is already saved.
+  file?: File;
+  // Token of the picture that is already saved with the question
+  token?: string | null;
 }
 
 interface ImageUploadProps {
@@ -21,8 +25,7 @@ interface ImageUploadProps {
   onError: (message: string | undefined) => void;
 }
 
-// Upload box for the question image. There is no server yet, so the file is only previewed here
-// and its name is saved with the question.
+// Upload box for the question image. The chosen file is previewed here and sent to the server when the question is saved.
 export function ImageUpload({ value, onChange, error, onError }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const urlRef = useRef<string | null>(null);
@@ -37,13 +40,13 @@ export function ImageUpload({ value, onChange, error, onError }: ImageUploadProp
 
   function accept(file: File | undefined) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return onError("Choose an image file (PNG, JPG, WebP or GIF).");
+    if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) return onError("Choose a PNG, JPG, WebP or GIF image.");
     if (file.size > MAX_BYTES) return onError("The image must be smaller than 2 MB.");
 
     onError(undefined);
     if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     urlRef.current = URL.createObjectURL(file);
-    onChange({ name: file.name, previewUrl: urlRef.current });
+    onChange({ name: file.name, previewUrl: urlRef.current, file, token: null });
   }
 
   function remove() {
@@ -66,7 +69,7 @@ export function ImageUpload({ value, onChange, error, onError }: ImageUploadProp
         ref={inputRef}
         id="question-image"
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp,image/gif"
         className="sr-only"
         onChange={(event) => accept(event.target.files?.[0])}
       />
@@ -84,7 +87,7 @@ export function ImageUpload({ value, onChange, error, onError }: ImageUploadProp
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-900">{value.name}</p>
-            <p className="text-xs text-slate-500">{value.previewUrl ? "Ready to save with the question" : "Saved with this question"}</p>
+            <p className="text-xs text-slate-500">{value.file ? "Will be uploaded when you save the question" : "Saved with this question"}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>

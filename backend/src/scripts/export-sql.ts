@@ -10,6 +10,8 @@ import { CREATE_MODULES_TABLE } from "../services/module.service";
 import { CREATE_PLAN_TABLES } from "../services/plan.service";
 import { CREATE_QUESTIONS_TABLE } from "../services/question.service";
 import { CREATE_ANSWERS_TABLE } from "../services/student-practice.service";
+import { CREATE_IMAGE_TABLES } from "../services/image.service";
+import { CREATE_PURCHASE_TABLES } from "../services/student-plan.service";
 import { CREATE_STUDENT_TABLES } from "../services/student.service";
 import { CREATE_SUBJECTS_TABLE } from "../services/subject.service";
 import { CREATE_ATTEMPT_TABLES } from "../services/test-attempt.service";
@@ -27,6 +29,7 @@ const tables = [
   CREATE_MODULES_TABLE,
   CREATE_TOPICS_TABLE,
   CREATE_QUESTIONS_TABLE,
+  ...CREATE_IMAGE_TABLES,
   ...CREATE_TEST_TABLES,
   ...CREATE_PLAN_TABLES,
   ...CREATE_STUDENT_TABLES,
@@ -34,6 +37,7 @@ const tables = [
   CREATE_BOOKMARKS_TABLE,
   ...CREATE_CUSTOM_MODULE_TABLES,
   ...CREATE_ATTEMPT_TABLES,
+  ...CREATE_PURCHASE_TABLES,
 ];
 
 const lines: string[] = [

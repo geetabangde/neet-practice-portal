@@ -2,6 +2,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool } from "../config/db";
 import type { OptionKey, QuestionType } from "./question.service";
 import { sameOptions } from "./student-practice.service";
+import { listSections, type TestSection } from "./test-section.service";
+import { negativeFor, type NegativeRatio } from "./test.service";
+import { hasPaidPlan, needsPaidPlan, PAID_PLAN_MESSAGE } from "./student-plan.service";
 
 // A student takes a test once. The attempt starts when the student presses "Yes" on the start pop-up and the clock
 // runs on the SERVER: the deadline is started_at + the duration of the test, so closing the page or changing the
@@ -32,7 +35,7 @@ export const CREATE_ATTEMPT_TABLES = [
     marked      TINYINT(1) NOT NULL DEFAULT 0,
     PRIMARY KEY (attempt_id, question_id),
     CONSTRAINT fk_attempt_answers_attempt FOREIGN KEY (attempt_id) REFERENCES test_attempts (id) ON DELETE CASCADE,
-    CONSTRAINT fk_attempt_answers_question FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE CASCADE
+    CONSTRAINT fk_attempt_answers_question FOREIGN KEY (question_id) REFERENCES test_series_questions (id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 
@@ -41,6 +44,25 @@ export interface AttemptQuestion {
   text: string;
   type: QuestionType;
   options: Record<OptionKey, string>;
+  // Token of the question's image (shown at /api/images/<token>), or null
+  imageToken: string | null;
+  // The part (Part A, Part B ...) the question is in, or null when the test has no parts
+  sectionId: number | null;
+}
+
+// A part of the test as the student sees it. The parts run one after the other, each for its own time: the student cannot
+// go to the next part until the time of the part he is in runs out, and cannot go back to a part that is over.
+export interface AttemptSection {
+  id: number;
+  name: string;
+  instructions: string;
+  durationMinutes: number;
+  questionCount: number;
+  status: "finished" | "current" | "upcoming";
+  // Seconds left in the part that is running (0 for the others)
+  secondsLeft: number;
+  // Seconds until an upcoming part starts (0 for the others)
+  startsInSeconds: number;
 }
 
 export interface SavedAnswer {
@@ -76,9 +98,13 @@ export interface Attempt {
   title: string;
   durationMinutes: number;
   marksPerQuestion: number;
+  // Marks taken off for a wrong answer (to 2 decimals), and the share of the marks it is: 1/3 or 1/4
   negativeMarking: number;
+  negativeRatio: NegativeRatio;
   status: "running" | "submitted";
   secondsLeft: number;
+  // Empty when the test has no parts: one timer for the whole test
+  sections: AttemptSection[];
   questions: AttemptQuestion[];
   answers: Record<number, SavedAnswer>;
   result?: AttemptResult;
@@ -92,9 +118,11 @@ interface AttemptRow extends RowDataPacket {
   title: string;
   durationMinutes: number;
   marksPerQuestion: string;
-  negativeMarking: string;
+  negativeRatio: NegativeRatio;
   submitted: number;
   secondsLeft: number;
+  // Seconds since the student started
+  elapsed: number;
   correct: number;
   incorrect: number;
   unattempted: number;
@@ -103,8 +131,9 @@ interface AttemptRow extends RowDataPacket {
 }
 
 const ATTEMPT_SELECT = `SELECT a.id, a.test_id AS testId, a.student_id AS studentId, t.title, t.duration_minutes AS durationMinutes,
-    t.marks_per_question AS marksPerQuestion, t.negative_marking AS negativeMarking, (a.submitted_at IS NOT NULL) AS submitted,
+    t.marks_per_question AS marksPerQuestion, t.negative_ratio AS negativeRatio, (a.submitted_at IS NOT NULL) AS submitted,
     CAST(t.duration_minutes AS SIGNED) * 60 - TIMESTAMPDIFF(SECOND, a.started_at, NOW()) AS secondsLeft,
+    TIMESTAMPDIFF(SECOND, a.started_at, NOW()) AS elapsed,
     a.correct, a.incorrect, a.unattempted, a.score, a.total_marks AS totalMarks
   FROM test_attempts a JOIN tests t ON t.id = a.test_id`;
 
@@ -124,15 +153,17 @@ interface QuestionRow extends RowDataPacket {
   correct: string;
   explanation: string;
   reference: string;
+  imageToken: string | null;
+  sectionId: number | null;
 }
 
-// The questions of a test in the order the admin set. Draft questions are skipped.
+// The questions written inside the test, in order. They are not QBank questions.
 async function loadQuestions(testId: number): Promise<QuestionRow[]> {
   const [rows] = await pool.query<QuestionRow[]>(
     `SELECT q.id, q.question_text AS text, q.type, q.option_a AS a, q.option_b AS b, q.option_c AS c, q.option_d AS d,
-            q.correct, q.explanation, q.reference_text AS reference
-       FROM test_questions tq JOIN questions q ON q.id = tq.question_id
-      WHERE tq.test_id = ? AND q.status = 'published' ORDER BY tq.position ASC`,
+            q.correct, q.explanation, q.reference_text AS reference, q.image_token AS imageToken, q.section_id AS sectionId
+       FROM test_series_questions q LEFT JOIN test_sections s ON s.id = q.section_id
+      WHERE q.test_id = ? ORDER BY COALESCE(s.position, 0) ASC, q.position ASC, q.id ASC`,
     [testId],
   );
   return rows;
@@ -150,12 +181,32 @@ async function loadAnswers(attemptId: number): Promise<Record<number, SavedAnswe
   return answers;
 }
 
+// Which part is running, from the seconds since the student started. Part 1 runs first for its time, then part 2, and so on:
+// the server's clock alone decides, so closing the page or changing the clock of the computer changes nothing.
+export function sectionStates(sections: TestSection[], elapsed: number, finished: boolean): AttemptSection[] {
+  let start = 0;
+  return sections.map((section) => {
+    const end = start + section.durationMinutes * 60;
+    let status: AttemptSection["status"] = "upcoming";
+    let secondsLeft = 0;
+    let startsInSeconds = 0;
+    if (finished || elapsed >= end) status = "finished";
+    else if (elapsed >= start) {
+      status = "current";
+      secondsLeft = end - elapsed;
+    } else startsInSeconds = start - elapsed;
+    start = end;
+    return { id: section.id, name: section.name, instructions: section.instructions, durationMinutes: section.durationMinutes, questionCount: section.questionCount, status, secondsLeft, startsInSeconds };
+  });
+}
+
 // Marks the attempt with the saved answers and closes it. Safe to call twice: the second call changes nothing.
 async function grade(row: AttemptRow): Promise<void> {
   const questions = await loadQuestions(row.testId);
   const answers = await loadAnswers(row.id);
   const marks = Number(row.marksPerQuestion);
-  const negative = Number(row.negativeMarking);
+  // Exactly a third or a quarter of the marks; only the final score is rounded
+  const negative = marks / (row.negativeRatio === "1/3" ? 3 : 4);
   let correct = 0;
   let incorrect = 0;
   for (const q of questions) {
@@ -180,7 +231,7 @@ async function buildAttempt(initial: AttemptRow): Promise<Attempt> {
     row = (await findAttemptRow("a.id = ?", [row.id])) ?? row;
   }
   const finished = row.submitted === 1;
-  const [questions, answers] = await Promise.all([loadQuestions(row.testId), loadAnswers(row.id)]);
+  const [questions, answers, sections] = await Promise.all([loadQuestions(row.testId), loadAnswers(row.id), listSections(row.testId)]);
 
   const attempt: Attempt = {
     id: row.id,
@@ -188,10 +239,12 @@ async function buildAttempt(initial: AttemptRow): Promise<Attempt> {
     title: row.title,
     durationMinutes: row.durationMinutes,
     marksPerQuestion: Number(row.marksPerQuestion),
-    negativeMarking: Number(row.negativeMarking),
+    negativeMarking: negativeFor(Number(row.marksPerQuestion), row.negativeRatio),
+    negativeRatio: row.negativeRatio,
     status: finished ? "submitted" : "running",
     secondsLeft: finished ? 0 : Math.max(0, row.secondsLeft),
-    questions: questions.map((q) => ({ id: q.id, text: q.text, type: q.type, options: { A: q.a, B: q.b, C: q.c, D: q.d } })),
+    sections: sectionStates(sections, row.elapsed, finished),
+    questions: questions.map((q) => ({ id: q.id, text: q.text, type: q.type, options: { A: q.a, B: q.b, C: q.c, D: q.d }, imageToken: q.imageToken, sectionId: q.sectionId })),
     answers,
   };
 
@@ -227,12 +280,14 @@ export async function startAttempt(testId: number, studentId: number): Promise<S
   const existing = await findAttemptRow("a.test_id = ? AND a.student_id = ?", [testId, studentId]);
   if (existing) return { ok: true, attempt: await buildAttempt(existing) };
 
-  const [tests] = await pool.query<(RowDataPacket & { status: string; started: number })[]>(
-    "SELECT status, (start_at <= NOW()) AS started FROM tests WHERE id = ? LIMIT 1",
+  const [tests] = await pool.query<(RowDataPacket & { status: string; kind: string; started: number })[]>(
+    "SELECT status, kind, (start_at <= NOW()) AS started FROM tests WHERE id = ? LIMIT 1",
     [testId],
   );
   const test = tests[0];
   if (!test || test.status === "draft") return { ok: false, status: 404, message: "Test not found" };
+  // Mini and Subject tests need a paid plan. 402 = payment required. (A test already started stays open, see above.)
+  if (needsPaidPlan(test.kind) && !(await hasPaidPlan(studentId))) return { ok: false, status: 402, message: PAID_PLAN_MESSAGE };
   if (test.started !== 1) return { ok: false, status: 409, message: "This test has not started yet." };
   if ((await loadQuestions(testId)).length === 0) return { ok: false, status: 409, message: "This test has no questions yet." };
 
@@ -267,6 +322,15 @@ export async function saveAttemptAnswer(attemptId: number, studentId: number, qu
   const question = questions.find((q) => q.id === questionId);
   if (!question) return { ok: false, status: 404, message: "This question is not in the test" };
   if (question.type === "single" && selected.length > 1) return { ok: false, status: 400, message: "Choose only one option for this question." };
+
+  // A test with parts: an answer can only be saved in the part that is running now. 423 = locked (the test itself goes on).
+  const sections = await listSections(row.testId);
+  if (sections.length > 0) {
+    const running = sectionStates(sections, row.elapsed, false).find((section) => section.status === "current");
+    if (!running || question.sectionId !== running.id) {
+      return { ok: false, status: 423, message: "This part is not open now. You can answer only in the part that is running." };
+    }
+  }
 
   await pool.query(
     `INSERT INTO test_attempt_answers (attempt_id, question_id, selected, marked) VALUES (?, ?, ?, ?)

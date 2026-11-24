@@ -67,6 +67,7 @@ export interface Topic {
   subjectId: string;
   moduleId: string;
   name: string;
+  durationMinutes: number;
   status: ActiveStatus;
 }
 
@@ -89,8 +90,10 @@ export interface Question {
   correct: OptionKey[];
   explanation: string;
   reference: string;
-  // Name of the chosen image file. There is no upload yet, so only the name is kept.
+  // Name of the chosen image file
   imageName: string;
+  // Token of the saved picture (shown at /api/images/<token>), or null when the question has no image
+  imageToken: string | null;
   status: QuestionStatus;
   createdAt: string;
 }
@@ -101,6 +104,8 @@ export type TestStatus = "draft" | "published" | "completed";
 // Where a test shows in the student Test Series
 export type TestKind = "grand" | "mini" | "subject";
 export type TestPattern = "NEET" | "INICET";
+// Marks taken off for a wrong answer, as a share of the marks of a right answer
+export type NegativeRatio = "1/3" | "1/4";
 
 export interface MockTest {
   id: string;
@@ -108,24 +113,19 @@ export interface MockTest {
   description: string;
   kind: TestKind;
   pattern: TestPattern;
-  subjectIds: string[];
-  topicIds: string[];
-  questionIds: string[];
+  // How many questions were written in this test. The questions have their own list (they are not QBank questions).
+  questionCount: number;
+  // How many parts (Part A, Part B ...) the test is cut into. 0: no parts, one timer for the whole test.
+  sectionCount: number;
   durationMinutes: number;
   marksPerQuestion: number;
-  // Marks removed for each wrong answer
+  negativeRatio: NegativeRatio;
+  // Marks removed for each wrong answer: worked out by the server from the marks and the ratio
   negativeMarking: number;
   // YYYY-MM-DDTHH:mm
   startAt: string;
   endAt: string;
   status: TestStatus;
-}
-
-export interface SubjectScore {
-  subjectId: string;
-  correct: number;
-  incorrect: number;
-  unattempted: number;
 }
 
 export interface TestResult {
@@ -141,7 +141,6 @@ export interface TestResult {
   completedAt: string;
   timeTakenMinutes: number;
   rank: number;
-  subjectScores: SubjectScore[];
 }
 
 // ---- Plans and payments ----------------------------------------------------------------

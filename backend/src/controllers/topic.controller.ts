@@ -36,6 +36,13 @@ function validate(body: unknown, partial: boolean): Validation {
     if (data.name.trim().length > 150) return { ok: false, message: "Topic name must be 150 characters or fewer" };
     value.name = data.name.trim();
   }
+  if (data.durationMinutes !== undefined) {
+    const minutes = toId(data.durationMinutes);
+    if (minutes === null || minutes > 1440) return { ok: false, message: "Duration must be a whole number of minutes (1 to 1440)" };
+    value.durationMinutes = minutes;
+  } else if (!partial) {
+    value.durationMinutes = 15;
+  }
   if (data.status !== undefined) {
     if (data.status !== "active" && data.status !== "inactive") return { ok: false, message: "Status must be active or inactive" };
     value.status = data.status as TopicStatus;

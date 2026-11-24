@@ -179,6 +179,7 @@ export async function importQuestions(rows: RawRow[], options: { createMissing: 
       explanation,
       reference,
       imageName: "",
+      imageToken: null,
       status: status as QuestionStatus,
     };
     const problem = findQuestionProblem(input);
@@ -252,7 +253,7 @@ export async function importQuestions(rows: RawRow[], options: { createMissing: 
     for (let start = 0; start < values.length; start += 200) {
       await connection.query(
         `INSERT INTO questions (subject_id, topic_id, question_text, difficulty, type, option_a, option_b, option_c, option_d,
-           correct, explanation, reference_text, image_name, status) VALUES ?`,
+           correct, explanation, reference_text, image_name, image_token, status) VALUES ?`,
         [values.slice(start, start + 200)],
       );
     }

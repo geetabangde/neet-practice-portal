@@ -2,7 +2,7 @@
 
 import { FileQuestion, ImageIcon, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { deleteQuestion } from "@/lib/questions-api";
 import { PageHeader } from "@/components/common/page-header";
 import { ListCard } from "@/components/common/list-card";
@@ -20,6 +20,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { Tabs } from "@/components/ui/tabs";
 import { usePagination } from "@/hooks/use-pagination";
+import { imageUrl } from "@/lib/images-api";
 import { indexById } from "@/lib/selectors";
 import type { Question } from "@/types";
 
@@ -29,17 +30,30 @@ const PAGE_SIZE = 10;
 
 const typeLabels = { single: "Single correct", multiple: "Multiple correct" } as const;
 
-export function QuestionsView({ initialQuery = "" }: { initialQuery?: string }) {
+export function QuestionsView({
+  initialQuery = "",
+  initialSubject = "all",
+  initialTopic = "all",
+}: {
+  initialQuery?: string;
+  initialSubject?: string;
+  initialTopic?: string;
+}) {
   const { questions, subjects, topics, removeQuestion, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState(initialQuery);
-  const [subjectFilter, setSubjectFilter] = useState("all");
-  const [topicFilter, setTopicFilter] = useState("all");
+  const [subjectFilter, setSubjectFilter] = useState(initialSubject);
+  const [topicFilter, setTopicFilter] = useState(initialTopic);
   const [difficulty, setDifficulty] = useState("all");
   const [type, setType] = useState("all");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [deleting, setDeleting] = useState<Question | null>(null);
+
+  useEffect(() => {
+    if (initialSubject && initialSubject !== "all") setSubjectFilter(initialSubject);
+    if (initialTopic && initialTopic !== "all") setTopicFilter(initialTopic);
+  }, [initialSubject, initialTopic]);
 
   async function confirmDelete(question: Question) {
     const result = await deleteQuestion(question.id);
@@ -73,16 +87,29 @@ export function QuestionsView({ initialQuery = "" }: { initialQuery?: string }) 
       primary: true,
       className: "max-w-md",
       cell: (question) => (
-        <div className="min-w-0">
-          <p className="line-clamp-2 font-medium text-slate-900">{question.text}</p>
-          <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-            {question.id}
-            {question.imageName ? (
-              <span className="inline-flex items-center gap-1">
-                <ImageIcon className="h-3 w-3" aria-hidden="true" /> Image
-              </span>
-            ) : null}
-          </p>
+        <div className="flex min-w-0 items-start gap-3">
+          {question.imageToken ? (
+            // The picture comes from the API, not from this panel: a plain <img> shows it. Click it to see it full size.
+            <a href={imageUrl(question.imageToken)} target="_blank" rel="noopener noreferrer" title="Open the image" className="shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imageUrl(question.imageToken)} alt={`Image of question ${question.id}`} loading="lazy" className="h-12 w-16 rounded-md border border-slate-200 bg-white object-cover" />
+            </a>
+          ) : null}
+          <div className="min-w-0">
+            <p className="line-clamp-2 font-medium text-slate-900">{question.text}</p>
+            <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+              {question.id}
+              {question.imageToken ? (
+                <span className="inline-flex items-center gap-1">
+                  <ImageIcon className="h-3 w-3" aria-hidden="true" /> Image
+                </span>
+              ) : question.imageName ? (
+                <span className="inline-flex items-center gap-1 text-amber-600" title="Only the file name was saved earlier. Edit the question and upload the image again.">
+                  <ImageIcon className="h-3 w-3" aria-hidden="true" /> Image not uploaded
+                </span>
+              ) : null}
+            </p>
+          </div>
         </div>
       ),
     },

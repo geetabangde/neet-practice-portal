@@ -3,7 +3,6 @@
 import { ArrowLeft, Award, CalendarDays, Crown, GraduationCap, Mail, Pencil, Phone, Target, UserCheck, UserX, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { BarList } from "@/components/charts/bar-list";
 import { AreaChart } from "@/components/charts/area-chart";
 import { ActiveBadge, PaymentStatusBadge, paymentMethodLabels } from "@/components/common/status-badges";
 import { PageHeader } from "@/components/common/page-header";
@@ -48,7 +47,7 @@ function MiniStat({ label, value, icon: Icon }: { label: string; value: string; 
 }
 
 export function StudentDetails({ id }: { id: string }) {
-  const { students, plans, results, tests, subjects, payments, contentStatus, reloadContent } = useAdminStore();
+  const { students, plans, results, tests, payments, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
   const [tab, setTab] = useState<DetailTab>("overview");
   const [editing, setEditing] = useState(false);
@@ -97,7 +96,6 @@ export function StudentDetails({ id }: { id: string }) {
 
   const plan = plans.items.find((p) => p.id === student.planId);
   const testById = indexById(tests.items);
-  const subjectById = indexById(subjects.items);
 
   const history = results
     .filter((result) => result.studentId === student.id)
@@ -113,24 +111,6 @@ export function StudentDetails({ id }: { id: string }) {
   const totalPaid = paymentHistory
     .filter((payment) => payment.status === "success")
     .reduce((sum, payment) => sum + payment.amount, 0);
-
-  // Accuracy per subject over all of this student's tests
-  const bySubject = new Map<string, { correct: number; incorrect: number }>();
-  for (const result of history) {
-    for (const score of result.subjectScores) {
-      const entry = bySubject.get(score.subjectId) ?? { correct: 0, incorrect: 0 };
-      bySubject.set(score.subjectId, {
-        correct: entry.correct + score.correct,
-        incorrect: entry.incorrect + score.incorrect,
-      });
-    }
-  }
-  const subjectAccuracy = [...bySubject]
-    .map(([subjectId, value]) => ({
-      label: subjectById.get(subjectId)?.name ?? "Deleted subject",
-      value: resultAccuracy(value),
-    }))
-    .sort((a, b) => b.value - a.value);
 
   // Accuracy of each attempt, oldest first
   const trend = [...history].reverse().map((result, index) => ({
@@ -294,13 +274,7 @@ export function StudentDetails({ id }: { id: string }) {
                 <EmptyState icon={Target} title="No performance data" description="Performance appears after the first test." />
               </Card>
             ) : (
-              <div className="grid gap-6 xl:grid-cols-2">
-                <Card>
-                  <CardHeader title="Accuracy by subject" description="All tests combined" />
-                  <CardContent>
-                    <BarList data={subjectAccuracy} measure="accuracy" />
-                  </CardContent>
-                </Card>
+              <div className="grid gap-6">
                 <Card>
                   <CardHeader title="Accuracy per attempt" description="Oldest to newest" />
                   <CardContent>

@@ -78,9 +78,9 @@ export async function listBookmarkedQuestions(
   moduleId: number,
 ): Promise<{ module: { id: number; name: string; subjectName: string; subjectSlug: string }; questions: PracticeQuestion[] } | null> {
   const [rows] = await pool.query<
-    (RowDataPacket & { id: number; text: string; type: QuestionType; a: string; b: string; c: string; d: string; moduleName: string; subjectName: string })[]
+    (RowDataPacket & { id: number; text: string; type: QuestionType; a: string; b: string; c: string; d: string; imageToken: string | null; moduleName: string; subjectName: string })[]
   >(
-    `SELECT q.id, q.question_text AS text, q.type, q.option_a AS a, q.option_b AS b, q.option_c AS c, q.option_d AS d,
+    `SELECT q.id, q.question_text AS text, q.type, q.option_a AS a, q.option_b AS b, q.option_c AS c, q.option_d AS d, q.image_token AS imageToken,
        m.name AS moduleName, s.name AS subjectName
      FROM student_bookmarks b
      JOIN questions q ON q.id = b.question_id
@@ -97,6 +97,7 @@ export async function listBookmarkedQuestions(
       text: row.text,
       type: row.type,
       options: { A: row.a, B: row.b, C: row.c, D: row.d } as Record<OptionKey, string>,
+      imageToken: row.imageToken,
       // Everything in this list is bookmarked
       bookmarked: true,
     })),

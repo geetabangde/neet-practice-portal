@@ -1,7 +1,7 @@
 // What a signed-in student can read from the backend: subjects, and inside them modules and topics.
 // The order is subject > module > topic.
 
-import { apiDelete, apiGet, apiPost, apiPut, type ApiResult } from "@/lib/api";
+import { API_URL, apiDelete, apiGet, apiPost, apiPut, type ApiResult } from "@/lib/api";
 
 export interface DashSubject {
   id: number;
@@ -20,6 +20,7 @@ export interface DashSubject {
 export interface DashTopic {
   id: number;
   name: string;
+  durationMinutes: number;
   questionCount: number;
   answeredCount: number;
 }
@@ -51,9 +52,14 @@ export interface PracticeQuestion {
   text: string;
   type: "single" | "multiple";
   options: Record<Letter, string>;
+  // Token of the question's image, or null when it has none. The picture is at questionImageUrl(token).
+  imageToken: string | null;
   // Has this student bookmarked the question?
   bookmarked: boolean;
 }
+
+// Where the picture of a question is shown from. It needs no login, so a plain <img> can load it.
+export const questionImageUrl = (token: string): string => `${API_URL}/api/images/${token}`;
 
 export interface PracticeTopic {
   id: number;
@@ -61,6 +67,7 @@ export interface PracticeTopic {
   moduleName: string;
   subjectName: string;
   subjectSlug: string;
+  durationMinutes: number;
 }
 
 // What the server says after marking an answer
@@ -178,6 +185,8 @@ export interface SeriesTest {
   questionCount: number;
   durationMinutes: number;
   status: "published" | "completed";
+  // Mini and Subject tests are locked until the student has a paid plan
+  locked: boolean;
 }
 
 export function fetchSeriesTests(token: string): Promise<ApiResult<{ tests: SeriesTest[] }>> {
@@ -212,6 +221,21 @@ export interface TestReviewItem {
   reference: string;
 }
 
+// A part of the test (Part A, Part B ...). The parts run one after the other, each for its own time: the student cannot go to
+// the next part until the time of the part he is in runs out, and cannot go back to a part that is over.
+export interface AttemptSection {
+  id: number;
+  name: string;
+  instructions: string;
+  durationMinutes: number;
+  questionCount: number;
+  status: "finished" | "current" | "upcoming";
+  // Seconds left in the part that is running (0 for the others)
+  secondsLeft: number;
+  // Seconds until an upcoming part starts (0 for the others)
+  startsInSeconds: number;
+}
+
 export interface TestAttemptData {
   id: number;
   testId: number;
@@ -219,10 +243,14 @@ export interface TestAttemptData {
   durationMinutes: number;
   marksPerQuestion: number;
   negativeMarking: number;
+  negativeRatio?: "1/3" | "1/4";
   status: "running" | "submitted";
   // Counted by the server, so closing the page does not stop the clock
   secondsLeft: number;
-  questions: { id: number; text: string; type: "single" | "multiple"; options: Record<Letter, string> }[];
+  // Empty when the test has no parts: one timer for the whole test
+  sections: AttemptSection[];
+  // imageToken: the question's picture (questionImageUrl(token)), or null. sectionId: its part, or null.
+  questions: { id: number; text: string; type: "single" | "multiple"; options: Record<Letter, string>; imageToken: string | null; sectionId: number | null }[];
   // Keyed by question id
   answers: Record<string, SavedTestAnswer>;
   // Only after the test is submitted
@@ -235,10 +263,36 @@ export function startTestAttempt(token: string, testId: string): Promise<ApiResu
   return apiPost<{ attempt: TestAttemptData }>(`/api/student/tests/${encodeURIComponent(testId)}/attempt`, {}, token);
 }
 
+// The attempt as the server has it now: which part is running and how long it has left
+export function fetchTestAttempt(token: string, attemptId: number): Promise<ApiResult<{ attempt: TestAttemptData }>> {
+  return apiGet<{ attempt: TestAttemptData }>(`/api/student/attempts/${attemptId}`, token);
+}
+
 export function saveTestAnswer(token: string, attemptId: number, questionId: number, answer: SavedTestAnswer): Promise<ApiResult<null>> {
   return apiPut<null>(`/api/student/attempts/${attemptId}/answers/${questionId}`, token, answer);
 }
 
 export function submitTestAttempt(token: string, attemptId: number): Promise<ApiResult<{ attempt: TestAttemptData }>> {
   return apiPost<{ attempt: TestAttemptData }>(`/api/student/attempts/${attemptId}/submit`, {}, token);
+}
+
+// ---- Plans -----------------------------------------------------------------------------------
+
+export interface CurrentPlan {
+  name: string;
+  price: number;
+  // YYYY-MM-DD, or null when the plan never runs out
+  expiresAt: string | null;
+  // false once the expiry date has passed
+  active: boolean;
+}
+
+// The plan the student has now (plan is null when there is none)
+export function fetchMyPlan(token: string): Promise<ApiResult<{ plan: CurrentPlan | null }>> {
+  return apiGet<{ plan: CurrentPlan | null }>("/api/student/plan", token);
+}
+
+// Buys a plan for some months. While payment is in demo mode the server takes no money and activates it at once.
+export function purchasePlan(token: string, plan: string, months: number, amount: number): Promise<ApiResult<{ plan: CurrentPlan }>> {
+  return apiPost<{ plan: CurrentPlan }>("/api/student/plan/purchase", { plan, months, amount }, token);
 }

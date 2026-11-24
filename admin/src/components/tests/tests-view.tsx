@@ -30,7 +30,7 @@ const KIND_LABELS: Record<TestKind, string> = { grand: "Grand Tests", mini: "Min
 const PAGE_SIZE = 8;
 
 export function TestsView() {
-  const { tests, subjects, contentStatus, reloadContent } = useAdminStore();
+  const { tests, contentStatus, reloadContent } = useAdminStore();
   const toast = useToast();
 
   const [query, setQuery] = useState("");
@@ -81,14 +81,7 @@ export function TestsView() {
           <Link href={`/tests/${test.id}/edit`} className="block truncate font-medium text-slate-900 hover:text-indigo-700">
             {test.title}
           </Link>
-          <p className="truncate text-xs text-slate-500">
-            {test.subjectIds
-              .map((id) => subjects.items.find((s) => s.id === id)?.name)
-              .filter(Boolean)
-              .slice(0, 3)
-              .join(", ") || "No questions yet"}
-            {test.subjectIds.length > 3 ? ` +${test.subjectIds.length - 3}` : ""}
-          </p>
+          <p className="truncate text-xs text-slate-500">{test.description || (test.questionCount === 0 ? "No questions yet" : plural(test.questionCount, "question"))}</p>
         </div>
       ),
     },
@@ -105,7 +98,7 @@ export function TestsView() {
             aria-label={`${total === 0 ? "Add questions to" : "Manage questions of"} ${test.title}`}
           >
             <ListChecks className="h-4 w-4" aria-hidden="true" />
-            {total === 0 ? "Add questions" : `${total} · Manage`}
+            {plural(total, "Question")}
           </Link>
         );
       },
@@ -113,7 +106,7 @@ export function TestsView() {
     { key: "pattern", header: "Pattern", hideBelow: "lg", cell: (test) => test.pattern },
     { key: "marks", header: "Marks", align: "right", cell: (test) => testTotals(test).totalMarks },
     { key: "duration", header: "Duration", cell: (test) => `${test.durationMinutes} min` },
-    { key: "negative", header: "Negative", hideOnMobile: true, hideBelow: "xl", cell: (test) => (test.negativeMarking > 0 ? `−${test.negativeMarking}` : "None") },
+    { key: "negative", header: "Negative", hideOnMobile: true, hideBelow: "xl", cell: (test) => `${test.negativeRatio} (−${test.negativeMarking})` },
     { key: "start", header: "Starts", hideBelow: "lg", cell: (test) => <span className="whitespace-nowrap">{formatDateTime(test.startAt)}</span> },
     { key: "status", header: "Status", cell: (test) => <TestStatusBadge status={test.status} /> },
   ];
@@ -122,7 +115,7 @@ export function TestsView() {
     <>
       <PageHeader
         title="Test management"
-        description="Create a test, then use its Questions button to choose the questions. Publish it when it is ready."
+        description="Create a test, then use its Questions button to write its questions. Publish it when it is ready."
         actions={
           <Link href="/tests/new" className={buttonStyles()}>
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -219,8 +212,8 @@ export function TestsView() {
         description={
           deleting ? (
             <>
-              <strong className="text-slate-900">{deleting.title}</strong> with {plural(deleting.questionIds.length, "question")} will
-              be deleted. Questions stay in the question bank. This cannot be undone.
+              <strong className="text-slate-900">{deleting.title}</strong> with {plural(deleting.questionCount, "question")} will
+              be deleted, and the students&apos; attempts of it too. This cannot be undone.
             </>
           ) : null
         }

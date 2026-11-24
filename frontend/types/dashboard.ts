@@ -33,6 +33,7 @@ export type DashboardPromo = {
 export type SubjectTopic = {
   name: string;
   mcqs: number;
+  durationMinutes?: number;
   // File name (without extension) in public/topics. Missing = a letter badge is shown instead.
   image?: string;
   // How many of the MCQs this student has answered. Missing = nothing is shown.

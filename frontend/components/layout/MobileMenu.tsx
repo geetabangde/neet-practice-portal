@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useSignedIn } from "@/lib/useSignedIn";
 import type { NavLink } from "@/types/landing";
 
 // Client Component: it needs useState to open/close the menu
 export default function MobileMenu({ links }: { links: NavLink[] }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const signedIn = useSignedIn();
 
   return (
     <div className="md:hidden">
@@ -46,25 +48,39 @@ export default function MobileMenu({ links }: { links: NavLink[] }) {
                 </Link>
               </li>
             ))}
-            {/* The header hides its Login button below the sm breakpoint, so it lives here on phones */}
-            <li className="sm:hidden">
-              <Link
-                href="/login"
-                onClick={() => setOpen(false)}
-                className="mt-2 block rounded-lg border border-white/40 px-3 py-2 text-center text-sm font-semibold text-white"
-              >
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/signup"
-                onClick={() => setOpen(false)}
-                className="mt-2 block rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-brand-950"
-              >
-                Enroll Now
-              </Link>
-            </li>
+            {signedIn ? (
+              <li>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className="mt-2 block rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-brand-950"
+                >
+                  Go to Dashboard
+                </Link>
+              </li>
+            ) : (
+              <>
+                {/* The header hides its Login button below the sm breakpoint, so it lives here on phones */}
+                <li className="sm:hidden">
+                  <Link
+                    href="/login"
+                    onClick={() => setOpen(false)}
+                    className="mt-2 block rounded-lg border border-white/40 px-3 py-2 text-center text-sm font-semibold text-white"
+                  >
+                    Login
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/signup"
+                    onClick={() => setOpen(false)}
+                    className="mt-2 block rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-brand-950"
+                  >
+                    Enroll Now
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
         </nav>
       ) : null}

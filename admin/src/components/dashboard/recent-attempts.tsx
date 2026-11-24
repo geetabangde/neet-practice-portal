@@ -6,15 +6,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import { studentsData } from "@/data/students";
 import { formatDate } from "@/lib/format";
 import { indexById, resultAccuracy, scoreTone } from "@/lib/selectors";
 
 export function RecentAttempts() {
-  const { results, tests } = useAdminStore();
-  // Results and payments are still sample data about sample students, so they find their people in the sample list,
-  // not in the real students.
-  const studentById = indexById(studentsData);
+  const { results, tests, students } = useAdminStore();
+  const studentById = indexById(students.items);
   const testById = indexById(tests.items);
 
   const latest = [...results]

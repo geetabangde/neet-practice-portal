@@ -3,11 +3,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { notificationsData } from "@/data/notifications";
 import { paymentsData } from "@/data/payments";
-import { resultsData } from "@/data/results";
 import { useCollection, type Collection } from "@/hooks/use-collection";
 import { fetchModules } from "@/lib/modules-api";
 import { fetchPlans } from "@/lib/plans-api";
 import { fetchQuestions } from "@/lib/questions-api";
+import { fetchResults } from "@/lib/results-api";
 import { fetchStudents } from "@/lib/students-api";
 import { fetchSubjects } from "@/lib/subjects-api";
 import { fetchTests } from "@/lib/tests-api";
@@ -70,11 +70,12 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const { setItems: setTests } = tests;
   const plans = useCollection<Plan>([]);
   const { setItems: setPlans } = plans;
+  const [results, setResults] = useState<TestResult[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [result, modulesResult, topicsResult, questionsResult, testsResult, plansResult, studentsResult] = await Promise.all([
+      const [result, modulesResult, topicsResult, questionsResult, testsResult, plansResult, studentsResult, resultsResult] = await Promise.all([
         fetchSubjects(),
         fetchModules(),
         fetchTopics(),
@@ -82,9 +83,10 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
         fetchTests(),
         fetchPlans(),
         fetchStudents(),
+        fetchResults(),
       ]);
       if (cancelled) return;
-      if (result.ok && modulesResult.ok && topicsResult.ok && questionsResult.ok && testsResult.ok && plansResult.ok && studentsResult.ok) {
+      if (result.ok && modulesResult.ok && topicsResult.ok && questionsResult.ok && testsResult.ok && plansResult.ok && studentsResult.ok && resultsResult.ok) {
         setSubjects(result.data);
         setModules(modulesResult.data);
         setTopics(topicsResult.data);
@@ -92,6 +94,7 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
         setTests(testsResult.data);
         setPlans(plansResult.data);
         setStudents(studentsResult.data);
+        setResults(resultsResult.data);
         setContentStatus("ready");
       } else {
         setContentStatus("error");
@@ -109,51 +112,28 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   }, []);
   const notifications = useCollection(notificationsData);
 
-  // Takes deleted questions out of every test, so test totals stay correct
-  const stripFromTests = (removed: Set<string>) => {
-    if (removed.size === 0) return;
-    tests.setItems((prev) =>
-      prev.map((test) => ({ ...test, questionIds: test.questionIds.filter((id) => !removed.has(id)) })),
-    );
-  };
-
+  // The tests have their own questions, so deleting QBank questions, topics, modules or subjects never touches a test
   const removeQuestion = (id: string) => {
     questions.remove(id);
-    stripFromTests(new Set([id]));
   };
 
   const removeTopic = (id: string) => {
-    const removed = new Set(questions.items.filter((q) => q.topicId === id).map((q) => q.id));
     topics.remove(id);
     questions.setItems((prev) => prev.filter((q) => q.topicId !== id));
-    tests.setItems((prev) => prev.map((t) => ({ ...t, topicIds: t.topicIds.filter((topicId) => topicId !== id) })));
-    stripFromTests(removed);
   };
 
   const removeModule = (id: string) => {
     const topicIds = new Set(topics.items.filter((t) => t.moduleId === id).map((t) => t.id));
-    const removed = new Set(questions.items.filter((q) => topicIds.has(q.topicId)).map((q) => q.id));
     modules.remove(id);
     topics.setItems((prev) => prev.filter((t) => t.moduleId !== id));
     questions.setItems((prev) => prev.filter((q) => !topicIds.has(q.topicId)));
-    tests.setItems((prev) => prev.map((t) => ({ ...t, topicIds: t.topicIds.filter((topicId) => !topicIds.has(topicId)) })));
-    stripFromTests(removed);
   };
 
   const removeSubject = (id: string) => {
-    const removed = new Set(questions.items.filter((q) => q.subjectId === id).map((q) => q.id));
     subjects.remove(id);
     modules.setItems((prev) => prev.filter((m) => m.subjectId !== id));
     topics.setItems((prev) => prev.filter((t) => t.subjectId !== id));
     questions.setItems((prev) => prev.filter((q) => q.subjectId !== id));
-    tests.setItems((prev) =>
-      prev.map((t) => ({
-        ...t,
-        subjectIds: t.subjectIds.filter((subjectId) => subjectId !== id),
-        topicIds: t.topicIds.filter((topicId) => topics.items.find((x) => x.id === topicId)?.subjectId !== id),
-      })),
-    );
-    stripFromTests(removed);
   };
 
   const value: AdminStore = {
@@ -167,7 +147,7 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
     tests,
     plans,
     notifications,
-    results: resultsData,
+    results,
     payments: paymentsData,
     removeSubject,
     removeModule,

@@ -5,6 +5,7 @@ import { createCustomModuleHandler, customModuleOptionsHandler, getCustomModuleH
 import { getSubjectHandler, listSubjectsHandler } from "../controllers/student-content.controller";
 import { answerQuestionHandler, getTopicQuestionsHandler } from "../controllers/student-practice.controller";
 import { getAttemptHandler, saveAnswerHandler, startAttemptHandler, submitAttemptHandler } from "../controllers/test-attempt.controller";
+import { getMyPlanHandler, purchasePlanHandler } from "../controllers/student-plan.controller";
 import { listStudentTestsHandler } from "../controllers/student-test.controller";
 import { requireStudent } from "../middleware/auth.middleware";
 
@@ -28,6 +29,9 @@ studentRouter.post("/tests/:id/attempt", startAttemptHandler);
 studentRouter.get("/attempts/:id", getAttemptHandler);
 studentRouter.put("/attempts/:id/answers/:questionId", saveAnswerHandler);
 studentRouter.post("/attempts/:id/submit", submitAttemptHandler);
+// Plan: the plan the student has, and buying one
+studentRouter.get("/plan", getMyPlanHandler);
+studentRouter.post("/plan/purchase", purchasePlanHandler);
 // Bookmarks
 studentRouter.get("/bookmarks", listBookmarksHandler);
 studentRouter.get("/bookmarks/modules/:moduleId", bookmarkedQuestionsHandler);
